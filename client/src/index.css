@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --felt-color: #1a5c2e;
+  --felt-dark: #0f3d1d;
+  --card-width: 90px;
+  --card-height: 135px;
+  --card-radius: 8px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--felt-dark);
+  color: white;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* 3D perspective container */
+.perspective-container {
+  perspective: 1200px;
+  perspective-origin: 50% 60%;
+}
+
+/* Card base with 3D feel */
+.card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease;
+}
+
+.card-3d:hover {
+  transform: translateY(-15px) rotateX(5deg) scale(1.05);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+}
+
+.card-3d.card-playable {
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+.card-3d.card-playable:hover {
+  box-shadow: 0 15px 35px rgba(255, 215, 0, 0.5);
+}
+
+/* Card face and back */
+.card-face, .card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--card-radius);
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, #8B0000, #B22222);
+  border: 2px solid #DAA520;
+}
+
+.card-back::after {
+  content: '🃏';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+/* Table felt texture */
+.felt-bg {
+  background:
+    radial-gradient(ellipse at center, #2d7a43 0%, #1a5c2e 50%, #0f3d1d 100%);
+}
+
+/* Deck pile */
+.deck-pile {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.deck-pile:hover {
+  transform: scale(1.05);
+}
+
+.deck-pile:active {
+  transform: scale(0.98);
+}
+
+/* Turn indicator */
+.turn-indicator {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Suit selector */
+.suit-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.suit-button:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 20px currentColor;
+}
+
+/* Scrollbar for chat */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+/* Opponent card fan */
+.opponent-card {
+  transition: transform 0.2s ease;
+}
+
+/* Play animation class */
+.card-playing {
+  animation: cardPlay 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Draw animation class */
+.card-drawing {
+  animation: cardDraw 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}

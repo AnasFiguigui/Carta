@@ -1,0 +1,196 @@
+import React, { useState, useEffect } from 'react';
+import { useGameStore } from '../lib/store';
+import { getSocket, connectSocket } from '../lib/socket';
+
+export default function HomeScreen() {
+  const [playerName, setPlayerName] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [error, setError] = useState('');
+  const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
+
+  // Auto-fill room code from URL query param (?room=XXXXX)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get('room');
+    if (room) {
+      setRoomCode(room.toUpperCase());
+      setMode('join');
+    }
+  }, []);
+
+  const store = useGameStore();
+
+  const handleCreate = () => {
+    const name = playerName.trim();
+    if (!name) {
+      setError('Please enter your name');
+      return;
+    }
+    if (name.length > 20) {
+      setError('Name too long (max 20 characters)');
+      return;
+    }
+
+    connectSocket();
+    const socket = getSocket();
+
+    socket.emit('create-room', { playerName: name }, (res) => {
+      if (res.roomId && res.playerId) {
+        store.setPlayerName(name);
+        store.setPlayerId(res.playerId);
+        store.setView('lobby');
+      } else {
+        setError('Failed to create room');
+      }
+    });
+  };
+
+  const handleJoin = () => {
+    const name = playerName.trim();
+    const code = roomCode.trim().toUpperCase();
+
+    if (!name) {
+      setError('Please enter your name');
+      return;
+    }
+    if (!code) {
+      setError('Please enter a room code');
+      return;
+    }
+
+    connectSocket();
+    const socket = getSocket();
+
+    socket.emit('join-room', { roomId: code, playerName: name }, (res) => {
+      if (res.success && res.playerId) {
+        store.setPlayerName(name);
+        store.setPlayerId(res.playerId);
+        store.setView('lobby');
+      } else {
+        setError(res.error || 'Failed to join room');
+      }
+    });
+  };
+
+  return (
+    <div className="w-full h-screen felt-bg flex items-center justify-center">
+      <div className="max-w-md w-full mx-4">
+        {/* Title */}
+        <div className="text-center mb-10 animate-slide-up">
+          <h1 className="text-6xl font-bold text-yellow-300 mb-2" style={{
+            textShadow: '0 0 30px rgba(255,215,0,0.3), 0 4px 8px rgba(0,0,0,0.5)',
+          }}>
+            🃏 Ronda
+          </h1>
+          <p className="text-white/60 text-sm">Moroccan Card Game • UNO-Style</p>
+          <p className="text-white/40 text-xs mt-1" dir="rtl">لعبة الورق المغربية</p>
+        </div>
+
+        <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl animate-fade-in">
+          {mode === 'menu' ? (
+            <div className="space-y-4">
+              {/* Name input */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1">Your Name</label>
+                <input
+                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                             border border-white/10 focus:border-yellow-500/50 transition-colors
+                             placeholder-white/30"
+                  placeholder="Enter your name..."
+                  value={playerName}
+                  onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
+                  maxLength={20}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    if (!playerName.trim()) { setError('Enter your name first'); return; }
+                    setMode('create');
+                    handleCreate();
+                  }}
+                  className="py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                             transition-all hover:scale-105 shadow-lg"
+                >
+                  Create Room
+                </button>
+                <button
+                  onClick={() => {
+                    if (!playerName.trim()) { setError('Enter your name first'); return; }
+                    setMode('join');
+                  }}
+                  className="py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg
+                             border border-white/20 transition-all hover:scale-105"
+                >
+                  Join Room
+                </button>
+              </div>
+            </div>
+          ) : mode === 'join' ? (
+            <div className="space-y-4">
+              <button
+                onClick={() => setMode('menu')}
+                className="text-xs text-white/50 hover:text-white/80 transition-colors"
+              >
+                ← Back
+              </button>
+
+              {/* Name input (shown in join mode so link users can enter their name) */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1">Your Name</label>
+                <input
+                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                             border border-white/10 focus:border-yellow-500/50 transition-colors
+                             placeholder-white/30"
+                  placeholder="Enter your name..."
+                  value={playerName}
+                  onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
+                  maxLength={20}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">Room Code</label>
+                <input
+                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                             border border-white/10 focus:border-yellow-500/50 transition-colors
+                             placeholder-white/30 text-center text-2xl tracking-widest uppercase"
+                  placeholder="XXXXX"
+                  value={roomCode}
+                  onChange={(e) => { setRoomCode(e.target.value.toUpperCase()); setError(''); }}
+                  maxLength={5}
+                />
+              </div>
+
+              <button
+                onClick={handleJoin}
+                className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                           transition-all hover:scale-105 shadow-lg"
+              >
+                Join Game
+              </button>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <div className="animate-spin text-3xl mb-3">🃏</div>
+              <p className="text-white/60">Creating room...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-3 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm text-center">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Rules hint */}
+        <div className="mt-6 text-center text-white/30 text-xs space-y-1">
+          <p>2-6 Players • 40 Spanish-Suited Cards</p>
+          <p>10s Skip • 7s Wild • 2s +2 • Ace of Coins +5</p>
+        </div>
+      </div>
+    </div>
+  );
+}

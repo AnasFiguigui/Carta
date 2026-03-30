@@ -1,0 +1,161 @@
+// ===== SUITS =====
+export enum Suit {
+  Cups = 'cups',
+  Swords = 'swords',
+  Clubs = 'clubs',
+  Coins = 'coins',
+}
+
+// ===== CARD VALUES =====
+// 1(Ace), 2, 3, 4, 5, 6, 7, 10(Sota/Jack), 11(Caballo/Knight), 12(Rey/King)
+export const CARD_VALUES = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12] as const;
+export type CardValue = (typeof CARD_VALUES)[number];
+
+// ===== CARD =====
+export interface Card {
+  suit: Suit;
+  value: CardValue;
+  id: string; // e.g. "cups-7"
+}
+
+// ===== SPECIAL CARD EFFECTS =====
+export enum CardEffect {
+  None = 'none',
+  Skip = 'skip',           // All 10s (Sota)
+  WildSuit = 'wild_suit',  // All 7s
+  DrawTwo = 'draw_two',    // All 2s
+  DrawFive = 'draw_five',  // 1 of Coins only
+}
+
+// ===== PLAYER =====
+export interface Player {
+  id: string;
+  name: string;
+  hand: Card[];       // Only sent to owning client
+  cardCount: number;  // Sent to all clients
+  isConnected: boolean;
+  isReady: boolean;
+  seatIndex: number;
+}
+
+// Public player info (no hand)
+export interface PublicPlayer {
+  id: string;
+  name: string;
+  cardCount: number;
+  isConnected: boolean;
+  isReady: boolean;
+  seatIndex: number;
+}
+
+// ===== GAME STATE =====
+export enum GamePhase {
+  Lobby = 'lobby',
+  Playing = 'playing',
+  ChoosingWildSuit = 'choosing_wild_suit',
+  RoundEnd = 'round_end',
+  GameOver = 'game_over',
+}
+
+export enum Direction {
+  Clockwise = 1,
+  CounterClockwise = -1,
+}
+
+export interface GameState {
+  roomId: string;
+  phase: GamePhase;
+  players: Player[];
+  currentPlayerIndex: number;
+  direction: Direction;
+  deck: Card[];
+  discardPile: Card[];
+  topCard: Card | null;
+  pendingDrawAmount: number;   // Stacked +2/+5 accumulation
+  forcedSuit: Suit | null;     // After a 7 is played
+  winnerId: string | null;
+  lastAction: GameAction | null;
+  turnTimeoutMs: number;
+}
+
+// Client-safe view (no deck, no other hands)
+export interface ClientGameState {
+  roomId: string;
+  phase: GamePhase;
+  players: PublicPlayer[];
+  myHand: Card[];
+  myPlayerId: string;
+  currentPlayerIndex: number;
+  direction: Direction;
+  topCard: Card | null;
+  deckCount: number;
+  discardPileTop3: Card[];
+  pendingDrawAmount: number;
+  forcedSuit: Suit | null;
+  winnerId: string | null;
+  lastAction: GameAction | null;
+}
+
+// ===== GAME ACTIONS =====
+export enum ActionType {
+  PlayCard = 'play_card',
+  DrawCard = 'draw_card',
+  ChooseSuit = 'choose_suit',
+  Pass = 'pass',
+}
+
+export interface GameAction {
+  type: ActionType;
+  playerId: string;
+  card?: Card;
+  chosenSuit?: Suit;
+  timestamp: number;
+}
+
+// ===== ROOM / LOBBY =====
+export interface Room {
+  id: string;
+  hostId: string;
+  players: Player[];
+  maxPlayers: number;
+  gameState: GameState | null;
+  createdAt: number;
+}
+
+export interface RoomInfo {
+  id: string;
+  hostId: string;
+  playerCount: number;
+  maxPlayers: number;
+  phase: GamePhase;
+}
+
+// ===== SOCKET EVENTS =====
+export interface ServerToClientEvents {
+  'room-updated': (room: RoomInfo & { players: PublicPlayer[] }) => void;
+  'game-state': (state: ClientGameState) => void;
+  'card-played': (data: { playerId: string; card: Card; nextPlayerIndex: number }) => void;
+  'card-drawn': (data: { playerId: string; cardCount: number; drawnCards?: Card[] }) => void;
+  'turn-changed': (data: { currentPlayerIndex: number }) => void;
+  'effect-applied': (data: { effect: CardEffect; targetPlayerId: string; amount?: number }) => void;
+  'suit-chosen': (data: { suit: Suit; playerId: string }) => void;
+  'game-over': (data: { winnerId: string; winnerName: string }) => void;
+  'player-joined': (player: PublicPlayer) => void;
+  'player-left': (data: { playerId: string; newHostId?: string }) => void;
+  'error': (data: { message: string }) => void;
+  'chat-message': (data: { playerId: string; playerName: string; message: string }) => void;
+}
+
+export interface ClientToServerEvents {
+  'create-room': (data: { playerName: string }, cb: (res: { roomId: string; playerId: string }) => void) => void;
+  'join-room': (data: { roomId: string; playerName: string }, cb: (res: { success: boolean; error?: string; playerId?: string }) => void) => void;
+  'leave-room': () => void;
+  'toggle-ready': () => void;
+  'start-game': () => void;
+  'play-card': (data: { cardId: string }) => void;
+  'draw-card': () => void;
+  'choose-suit': (data: { suit: Suit }) => void;
+  'pass-turn': () => void;
+  'request-state': () => void;
+  'chat-message': (data: { message: string }) => void;
+}
