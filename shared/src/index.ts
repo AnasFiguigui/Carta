@@ -95,6 +95,7 @@ export interface GameState {
   winnerId: string | null;
   loserId: string | null;
   finishedPlayerIds: string[];
+  kickedPlayerIds: string[];
   lastAction: GameAction | null;
   turnTimeoutMs: number;
   turnStartedAt: number;       // timestamp when current turn started
@@ -118,6 +119,7 @@ export interface ClientGameState {
   winnerId: string | null;
   loserId: string | null;
   finishedPlayerIds: string[];
+  kickedPlayerIds: string[];
   lastAction: GameAction | null;
   turnStartedAt: number;
   turnTimeoutMs: number;

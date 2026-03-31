@@ -43,6 +43,7 @@ export class GameEngine {
       winnerId: null,
       loserId: null,
       finishedPlayerIds: [],
+      kickedPlayerIds: [],
       lastAction: null,
       turnTimeoutMs: TURN_TIMEOUT_MS,
       turnStartedAt: 0,
@@ -83,6 +84,7 @@ export class GameEngine {
     this.state.winnerId = null;
     this.state.loserId = null;
     this.state.finishedPlayerIds = [];
+    this.state.kickedPlayerIds = [];
     this.state.turnStartedAt = Date.now();
   }
 
@@ -129,6 +131,7 @@ export class GameEngine {
       hasDrawnThisTurn: this.state.hasDrawnThisTurn,
       loserId: this.state.loserId,
       finishedPlayerIds: [...this.state.finishedPlayerIds],
+      kickedPlayerIds: [...this.state.kickedPlayerIds],
     };
   }
 
@@ -459,6 +462,7 @@ export class GameEngine {
 
     // Mark as finished (kicked)
     this.state.finishedPlayerIds.push(playerId);
+    this.state.kickedPlayerIds.push(playerId);
 
     // If it was their turn, advance
     if (this.state.phase === GamePhase.Playing || this.state.phase === GamePhase.ChoosingWildSuit) {
@@ -483,12 +487,15 @@ export class GameEngine {
       // Set winner if not already set (the first to empty hand wins; if nobody emptied, no winner)
       if (!this.state.winnerId && this.state.loserId) {
         // Find the first player who finished by emptying hand (not kicked)
-        // If none, the loser is just the last one left
-        const firstFinisher = this.state.finishedPlayerIds.find(id => {
-          const p = this.state.players.find(pl => pl.id === id);
-          return p && p.hand.length === 0;
-        });
+        const firstFinisher = this.state.finishedPlayerIds.find(id =>
+          !this.state.kickedPlayerIds.includes(id)
+        );
         this.state.winnerId = firstFinisher || null;
+      }
+      // If everyone else was kicked, last remaining is the winner not the loser
+      if (!this.state.winnerId && this.state.loserId) {
+        this.state.winnerId = this.state.loserId;
+        this.state.loserId = null;
       }
       this.state.phase = GamePhase.GameOver;
       return { gameOver: true };

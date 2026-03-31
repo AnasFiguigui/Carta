@@ -156,6 +156,7 @@ export default function GameBoard() {
   const isHost = playerId === hostId;
   const isHostForOverlay = isGameOver ? (roomPlayers.some(p => p.id === playerId) && playerId === hostId) : isHost;
   const myIsFinished = gameState.finishedPlayerIds?.includes(playerId) ?? false;
+  const myIsKicked = gameState.kickedPlayerIds?.includes(playerId) ?? false;
 
   return (
     <div className="w-full h-screen felt-bg perspective-container relative overflow-hidden">
@@ -281,6 +282,7 @@ export default function GameBoard() {
           pendingDrawAmount={gameState.pendingDrawAmount}
           currentPlayerId={currentTurnPlayer?.id}
           isFinished={gameState.finishedPlayerIds?.includes(opponent.id) ?? false}
+          isKicked={gameState.kickedPlayerIds?.includes(opponent.id) ?? false}
           isHost={isHost}
         />
       ))}
@@ -331,7 +333,7 @@ export default function GameBoard() {
           {/* Avatar row: pass button (left) + avatar with timer ring */}
           <div className="flex items-center gap-2 mb-1 relative">
             {/* Crown for finished player */}
-            {myIsFinished && (
+            {myIsFinished && !myIsKicked && (
               <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
             )}
 

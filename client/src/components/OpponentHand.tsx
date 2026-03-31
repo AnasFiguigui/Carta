@@ -14,6 +14,7 @@ interface OpponentProps {
   pendingDrawAmount: number;
   currentPlayerId: string | undefined;
   isFinished?: boolean;
+  isKicked?: boolean;
   isHost?: boolean;
 }
 
@@ -27,6 +28,7 @@ export default function OpponentHand({
   pendingDrawAmount,
   currentPlayerId,
   isFinished = false,
+  isKicked = false,
   isHost = false,
 }: OpponentProps) {
   const activeEffect = useGameStore((s) => s.activeEffect);
@@ -52,7 +54,7 @@ export default function OpponentHand({
       {/* Container for avatar + cards below it */}
       <div className="relative" style={{ width: 140, height: 140 }}>
         {/* Crown for finished players */}
-        {isFinished && (
+        {isFinished && !isKicked && (
           <div className="absolute left-1/2 -translate-x-1/2 -top-1 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
         )}
 
