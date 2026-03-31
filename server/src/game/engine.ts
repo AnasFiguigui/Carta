@@ -463,6 +463,7 @@ export class GameEngine {
     // Mark as finished (kicked)
     this.state.finishedPlayerIds.push(playerId);
     this.state.kickedPlayerIds.push(playerId);
+    player.isConnected = false;
 
     // If it was their turn, advance
     if (this.state.phase === GamePhase.Playing || this.state.phase === GamePhase.ChoosingWildSuit) {

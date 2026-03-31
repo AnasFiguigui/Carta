@@ -620,6 +620,14 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
       // During active game: use kickPlayer engine method
       if (engine && state && state.phase !== GamePhase.Lobby && state.phase !== GamePhase.GameOver) {
+        // Notify the kicked player and remove from socket.io room
+        const kickedSid = roomManager.getSocketIdForPlayer(mapping.roomId, data.targetPlayerId);
+        if (kickedSid) {
+          io.to(kickedSid).emit('error', { message: 'You have been kicked from the room' });
+          const kickedSocket = io.sockets.sockets.get(kickedSid);
+          if (kickedSocket) kickedSocket.leave(mapping.roomId);
+        }
+
         const result = roomManager.kickDisconnectedPlayer(mapping.roomId, data.targetPlayerId);
         if (!result.success || !result.room) return;
 
