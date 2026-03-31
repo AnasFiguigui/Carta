@@ -186,6 +186,11 @@ export class RoomManager {
     room.players.push(player);
     this.socketMap.set(socketId, { roomId: room.id, playerId });
 
+    // Assign host if no current host among players
+    if (!room.players.some(p => p.id === room.hostId)) {
+      room.hostId = playerId;
+    }
+
     return { success: true, room, playerId };
   }
 
