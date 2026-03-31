@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
-import { getSocket, connectSocket } from '../lib/socket';
+import { connectSocket } from '../lib/socket';
 import AvatarPicker from './AvatarPicker';
 import type { AvatarId } from 'shared';
 
@@ -38,20 +38,28 @@ export default function HomeScreen() {
       return;
     }
 
-    connectSocket();
-    const socket = getSocket();
+    const socket = connectSocket();
 
-    socket.emit('create-room', { playerName: name, avatarId, avatarColor }, (res) => {
-      if (res.roomId && res.playerId) {
-        store.setPlayerName(name);
-        store.setPlayerId(res.playerId);
-        store.setAvatarId(avatarId);
-        store.setAvatarColor(avatarColor);
-        store.setView('lobby');
-      } else {
-        setError('Failed to create room');
-      }
-    });
+    const doCreate = () => {
+      socket.emit('create-room', { playerName: name, avatarId, avatarColor }, (res) => {
+        if (res.roomId && res.playerId) {
+          store.setPlayerName(name);
+          store.setPlayerId(res.playerId);
+          store.setAvatarId(avatarId);
+          store.setAvatarColor(avatarColor);
+          store.setView('lobby');
+        } else {
+          setError('Failed to create room');
+        }
+      });
+    };
+
+    if (socket.connected) {
+      doCreate();
+    } else {
+      socket.once('connect', doCreate);
+      socket.once('connect_error', () => setError('Cannot reach server'));
+    }
   };
 
   const handleJoin = () => {
@@ -67,23 +75,31 @@ export default function HomeScreen() {
       return;
     }
 
-    connectSocket();
-    const socket = getSocket();
+    const socket = connectSocket();
 
-    socket.emit('join-room', { roomId: code, playerName: name, avatarId, avatarColor }, (res) => {
-      if (res.success && res.playerId) {
-        store.setPlayerName(name);
-        store.setPlayerId(res.playerId);
-        store.setAvatarId(avatarId);
-        store.setAvatarColor(avatarColor);
-        if ((res as any).asSpectator) {
-          store.setIsSpectator(true);
+    const doJoin = () => {
+      socket.emit('join-room', { roomId: code, playerName: name, avatarId, avatarColor }, (res) => {
+        if (res.success && res.playerId) {
+          store.setPlayerName(name);
+          store.setPlayerId(res.playerId);
+          store.setAvatarId(avatarId);
+          store.setAvatarColor(avatarColor);
+          if ((res as any).asSpectator) {
+            store.setIsSpectator(true);
+          }
+          store.setView('lobby');
+        } else {
+          setError(res.error || 'Failed to join room');
         }
-        store.setView('lobby');
-      } else {
-        setError(res.error || 'Failed to join room');
-      }
-    });
+      });
+    };
+
+    if (socket.connected) {
+      doJoin();
+    } else {
+      socket.once('connect', doJoin);
+      socket.once('connect_error', () => setError('Cannot reach server'));
+    }
   };
 
   if (isMenuMode) {
