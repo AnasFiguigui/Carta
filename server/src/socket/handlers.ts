@@ -10,6 +10,7 @@ const MAX_NAME_LENGTH = 20;
 const MAX_CHAT_LENGTH = 200;
 const TURN_TIMEOUT_MS = 30_000;
 const COOLDOWN_MS = 5_000;
+const TURN_COOLDOWN_MS = 2_000;
 
 function sanitizeName(name: string): string {
   return name.trim().slice(0, MAX_NAME_LENGTH).replace(/[<>&"'/]/g, '');
@@ -34,10 +35,11 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
   function startTurnTimer(roomId: string) {
     clearTurnTimer(roomId);
 
+    // Add 2s inter-turn cooldown before the actual turn timer starts
     const timer = setTimeout(() => {
       turnTimers.delete(roomId);
       handleTimerExpiry(roomId);
-    }, TURN_TIMEOUT_MS);
+    }, TURN_TIMEOUT_MS + TURN_COOLDOWN_MS);
 
     turnTimers.set(roomId, timer);
   }
@@ -354,6 +356,20 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       }
 
       clearTurnTimer(mapping.roomId);
+
+      // If pass forced a draw (player hadn't drawn), notify
+      if (result.drawnCards && result.drawnCards.length > 0) {
+        socket.emit('card-drawn', {
+          playerId: mapping.playerId,
+          cardCount: result.drawnCards.length,
+          drawnCards: result.drawnCards,
+        });
+        socket.to(mapping.roomId).emit('card-drawn', {
+          playerId: mapping.playerId,
+          cardCount: result.drawnCards.length,
+        });
+        emitSound(mapping.roomId, 'card-draw');
+      }
 
       const room = roomManager.getRoom(mapping.roomId);
       broadcastGameState(io, mapping.roomId, engine, room?.spectators || []);

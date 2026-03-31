@@ -91,7 +91,7 @@ export default function HomeScreen() {
           <h1 className="text-6xl font-bold text-yellow-300 mb-2" style={{
             textShadow: '0 0 30px rgba(255,215,0,0.3), 0 4px 8px rgba(0,0,0,0.5)',
           }}>
-            🃏 Ronda
+            🃏 Carta
           </h1>
           <p className="text-white/60 text-sm">Moroccan Card Game • UNO-Style</p>
           <p className="text-white/40 text-xs mt-1" dir="rtl">لعبة الورق المغربية</p>

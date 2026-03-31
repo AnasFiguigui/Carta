@@ -44,25 +44,25 @@ export default function OpponentHand({
       }}
     >
       {/* Container for avatar + cards around it */}
-      <div className="relative" style={{ width: 120, height: 110 }}>
+      <div className="relative" style={{ width: 140, height: 120 }}>
         {/* Cards fanned in an arc at the top of the avatar */}
         {Array.from({ length: cardCount }).map((_, i) => {
           const angle = cardCount > 1
             ? startAngle + (i / (cardCount - 1)) * fanAngle
             : 0;
           const radians = (angle - 90) * (Math.PI / 180);
-          const radius = 42;
-          const cx = 60; // center of container
-          const cy = 48;
-          const x = cx + Math.cos(radians) * radius - 16;
-          const y = cy + Math.sin(radians) * radius - 24;
+          const radius = 48;
+          const cx = 70; // center of container
+          const cy = 52;
+          const x = cx + Math.cos(radians) * radius - 20;
+          const y = cy + Math.sin(radians) * radius - 30;
           return (
             <div
               key={i}
               className="absolute opponent-card"
               style={{
-                width: 32,
-                height: 48,
+                width: 40,
+                height: 60,
                 left: x,
                 top: y,
                 transform: `rotate(${angle}deg)`,
@@ -89,7 +89,7 @@ export default function OpponentHand({
             name={player.name}
             avatarId={player.avatarId}
             avatarColor={player.avatarColor}
-            size="xl"
+            size="lg"
             isCurrentTurn={isCurrentTurn}
             isDisconnected={!player.isConnected}
           />

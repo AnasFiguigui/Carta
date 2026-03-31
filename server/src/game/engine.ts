@@ -23,6 +23,7 @@ import {
 
 const CARDS_PER_PLAYER = 4;
 const TURN_TIMEOUT_MS = 30_000;
+const TURN_COOLDOWN_MS = 2_000;
 
 export class GameEngine {
   private state: GameState;
@@ -43,6 +44,7 @@ export class GameEngine {
       lastAction: null,
       turnTimeoutMs: TURN_TIMEOUT_MS,
       turnStartedAt: 0,
+      hasDrawnThisTurn: false,
     };
   }
 
@@ -120,6 +122,7 @@ export class GameEngine {
       turnStartedAt: this.state.turnStartedAt,
       turnTimeoutMs: this.state.turnTimeoutMs,
       spectators,
+      hasDrawnThisTurn: this.state.hasDrawnThisTurn,
     };
   }
 
@@ -134,7 +137,9 @@ export class GameEngine {
     let steps = skip ? 2 : 1;
     this.state.currentPlayerIndex =
       (this.state.currentPlayerIndex + this.state.direction * steps + count * steps) % count;
-    this.state.turnStartedAt = Date.now();
+    // Offset by 2s so the client timer shows a brief cooldown before counting down
+    this.state.turnStartedAt = Date.now() + TURN_COOLDOWN_MS;
+    this.state.hasDrawnThisTurn = false;
   }
 
   /** Recycle discard pile into deck when deck is empty */
@@ -317,6 +322,8 @@ export class GameEngine {
       return { success: false, error: 'Deck is empty' };
     }
 
+    this.state.hasDrawnThisTurn = true;
+
     this.state.lastAction = {
       type: ActionType.DrawCard,
       playerId,
@@ -336,7 +343,7 @@ export class GameEngine {
   }
 
   /** Pass turn (only if player has drawn and can't/won't play) */
-  passTurn(playerId: string): { success: boolean; error?: string; nextPlayerIndex?: number } {
+  passTurn(playerId: string): { success: boolean; error?: string; nextPlayerIndex?: number; drawnCards?: Card[] } {
     if (this.state.phase !== GamePhase.Playing) {
       return { success: false, error: 'Game is not in playing phase' };
     }
@@ -346,6 +353,13 @@ export class GameEngine {
       return { success: false, error: 'Not your turn' };
     }
 
+    // If player hasn't drawn this turn, force them to draw a card first
+    let drawnCards: Card[] | undefined;
+    if (!this.state.hasDrawnThisTurn) {
+      this.recycleDiscard();
+      drawnCards = this.drawCards(currentPlayer, 1);
+    }
+
     this.state.lastAction = {
       type: ActionType.Pass,
       playerId,
@@ -353,7 +367,7 @@ export class GameEngine {
     };
 
     this.advanceTurn();
-    return { success: true, nextPlayerIndex: this.state.currentPlayerIndex };
+    return { success: true, nextPlayerIndex: this.state.currentPlayerIndex, drawnCards };
   }
 
   /** Handle player disconnect */

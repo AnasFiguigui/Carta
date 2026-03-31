@@ -29,5 +29,5 @@ app.get('/health', (_req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🃏 Ronda server running on port ${PORT}`);
+  console.log(`🃏 Carta server running on port ${PORT}`);
 });

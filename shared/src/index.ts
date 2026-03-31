@@ -96,6 +96,7 @@ export interface GameState {
   lastAction: GameAction | null;
   turnTimeoutMs: number;
   turnStartedAt: number;       // timestamp when current turn started
+  hasDrawnThisTurn: boolean;   // whether current player has drawn a card this turn
 }
 
 // Client-safe view (no deck, no other hands)
@@ -117,6 +118,7 @@ export interface ClientGameState {
   turnStartedAt: number;
   turnTimeoutMs: number;
   spectators: Spectator[];
+  hasDrawnThisTurn: boolean;
 }
 
 // ===== GAME ACTIONS =====

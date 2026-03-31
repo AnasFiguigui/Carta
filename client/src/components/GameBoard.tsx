@@ -13,6 +13,17 @@ import TurnTimer from './TurnTimer';
 import Avatar from './Avatar';
 import { playSound } from '../lib/sounds';
 
+/** Detect mobile via viewport width */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 /** Calculate opponent positions around the table based on player count */
 function getOpponentPositions(
   totalPlayers: number
@@ -57,6 +68,9 @@ export default function GameBoard() {
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
   const [showRules, setShowRules] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const isMobile = useIsMobile();
+  const chatMessages = useGameStore((s) => s.chatMessages);
 
   const myPlayerIndex = gameState?.players.findIndex((p) => p.id === playerId) ?? -1;
   const isMyTurn = gameState ? gameState.currentPlayerIndex === myPlayerIndex : false;
@@ -116,7 +130,7 @@ export default function GameBoard() {
 
   return (
     <div className="w-full h-screen felt-bg perspective-container relative overflow-hidden">
-      {/* Left side: Rules + Spectators */}
+      {/* Left side: Rules + Sound + Spectators */}
       <div className="absolute top-3 left-3 z-30 flex flex-col gap-2">
         <button
           onClick={() => setShowRules(true)}
@@ -134,6 +148,20 @@ export default function GameBoard() {
         >
           {soundEnabled ? '🔊' : '🔇'}
         </button>
+        {/* Chat toggle (mobile) */}
+        {isMobile && (
+          <button
+            onClick={() => setShowChat(!showChat)}
+            className="relative px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
+                       rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+            title="Chat"
+          >
+            💬
+            {chatMessages.length > 0 && !showChat && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+            )}
+          </button>
+        )}
         <SpectatorPanel
           spectators={gameState.spectators || []}
           canJoin={gameState.players.length < 6 && (gameState.phase === 'lobby' || gameState.phase === 'game_over')}
@@ -141,8 +169,8 @@ export default function GameBoard() {
       </div>
 
       {/* Right side: Room code + Leave */}
-      <div className="absolute top-3 right-3 z-30 flex flex-col items-end gap-2">
-        <div className="px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60">
+      <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+        <div className="px-2 py-1 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60">
           <span className="font-bold text-yellow-300">{gameState.roomId}</span>
         </div>
         <button
@@ -150,46 +178,17 @@ export default function GameBoard() {
             getSocket().emit('leave-room');
             useGameStore.getState().reset();
           }}
-          className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 bg-white/5 hover:bg-white/10
+          className="px-2 py-1 text-xs text-red-400 hover:text-red-300 bg-white/5 hover:bg-white/10
                      rounded-lg border border-red-500/20 transition-colors"
         >
-          Leave
+          ✕
         </button>
       </div>
 
-      {/* Turn indicator (top center) */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
-        {gameState.direction === 1 ? (
-          <span className="text-white/40 text-xs">↻</span>
-        ) : (
-          <span className="text-white/40 text-xs">↺</span>
-        )}
-        <div className={`text-sm font-bold px-4 py-1.5 rounded-full backdrop-blur-sm ${
-          isMyTurn
-            ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-300'
-            : 'bg-black/30 border border-white/10 text-white/60'
-        }`}>
-          {isMyTurn ? '🎯 Your Turn!' : `${currentTurnPlayer?.name}'s turn`}
-        </div>
+      {/* Direction indicator (small, top center) */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+        <span className="text-white/30 text-lg">{gameState.direction === 1 ? '↻' : '↺'}</span>
       </div>
-
-      {/* Timer expired overlay */}
-      {timerExpiredPlayerId && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 animate-bounce-in">
-          <div className="px-4 py-2 bg-red-600/90 rounded-xl text-white font-bold text-sm shadow-lg border border-red-400/50">
-            ⏰ Time's Up! {gameState.players.find(p => p.id === timerExpiredPlayerId)?.name}
-          </div>
-        </div>
-      )}
-
-      {/* Auto-draw overlay */}
-      {autoDrawPlayerId && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 animate-bounce-in">
-          <div className="px-4 py-2 bg-orange-600/90 rounded-xl text-white font-bold text-sm shadow-lg border border-orange-400/50">
-            +1 Auto-draw penalty
-          </div>
-        </div>
-      )}
 
       {/* Opponent hands */}
       {opponents.map((opponent, i) => (
@@ -226,8 +225,8 @@ export default function GameBoard() {
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
           {/* Avatar row: pass button (left) + avatar + timer (right) */}
           <div className="flex items-center gap-2 mb-1">
-            {/* Pass turn button — attached left of avatar */}
-            {isMyTurn && !isChoosingWild && playableCardIds.size === 0 && gameState.pendingDrawAmount === 0 && (
+            {/* Pass turn button — only after drawing, when player has playable cards but chooses not to play */}
+            {isMyTurn && !isChoosingWild && gameState.hasDrawnThisTurn && playableCardIds.size > 0 && (
               <button
                 onClick={handlePassTurn}
                 className="px-3 py-1.5 bg-gray-700/80 hover:bg-gray-600 rounded-lg text-xs text-white
@@ -241,7 +240,7 @@ export default function GameBoard() {
               name={myPlayer.name}
               avatarId={myPlayer.avatarId}
               avatarColor={myPlayer.avatarColor}
-              size="xl"
+              size="lg"
               isCurrentTurn={isMyTurn}
             />
 
@@ -301,10 +300,22 @@ export default function GameBoard() {
         </div>
       )}
 
-      {/* Chat panel (bottom right) */}
-      <div className="absolute bottom-4 right-4 z-20 w-64">
-        <ChatPanel />
-      </div>
+      {/* Chat panel — desktop: always shown bottom-right; mobile: overlay */}
+      {isMobile ? (
+        showChat && (
+          <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 animate-fade-in"
+               onClick={() => setShowChat(false)}>
+            <div className="w-full max-w-md h-[50vh] pb-4 px-2"
+                 onClick={(e) => e.stopPropagation()}>
+              <ChatPanel />
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="absolute bottom-4 right-4 z-20 w-56" style={{ height: 220 }}>
+          <ChatPanel />
+        </div>
+      )}
 
       {/* Rules Modal */}
       {showRules && (
@@ -317,7 +328,7 @@ export default function GameBoard() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-yellow-300">📖 Ronda Rules</h2>
+              <h2 className="text-2xl font-bold text-yellow-300">📖 Carta Rules</h2>
               <button
                 onClick={() => setShowRules(false)}
                 className="text-white/50 hover:text-white text-xl transition-colors"
@@ -362,7 +373,8 @@ export default function GameBoard() {
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>Draw penalties stack — a +2 can be answered with another +2 or +5</li>
                   <li>If you can't play or stack, you must draw the full penalty</li>
-                  <li>After drawing (when no penalty), you may pass your turn</li>
+                  <li>After drawing, if you have playable cards you may pass your turn</li>
+                  <li>Passing without drawing first will automatically draw a card for you</li>
                   <li>The first player to empty their hand wins!</li>
                 </ul>
               </div>

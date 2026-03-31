@@ -1,5 +1,5 @@
 {
-  "name": "ronda-cards",
+  "name": "carta-cards",
   "version": "1.0.0",
   "private": true,
   "workspaces": ["shared", "server", "client"],
