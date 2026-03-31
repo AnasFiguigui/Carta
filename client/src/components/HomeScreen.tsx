@@ -11,10 +11,12 @@ export default function HomeScreen() {
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
   const [avatarId, setAvatarId] = useState<AvatarId>('default');
   const [avatarColor, setAvatarColor] = useState('#3498db');
+  const isMenuMode = mode === 'menu';
+  const isJoinMode = mode === 'join';
 
   // Auto-fill room code from URL query param (?room=XXXXX)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(globalThis.location.search);
     const room = params.get('room');
     if (room) {
       setRoomCode(room.toUpperCase());
@@ -23,6 +25,7 @@ export default function HomeScreen() {
   }, []);
 
   const store = useGameStore();
+  let panelContent: JSX.Element;
 
   const handleCreate = () => {
     const name = playerName.trim();
@@ -83,6 +86,120 @@ export default function HomeScreen() {
     });
   };
 
+  if (isMenuMode) {
+    panelContent = (
+      <div className="space-y-4">
+        <AvatarPicker
+          name={playerName || '?'}
+          selectedAvatarId={avatarId}
+          selectedColor={avatarColor}
+          onSelectAvatar={setAvatarId}
+          onSelectColor={setAvatarColor}
+        />
+
+        <div>
+          <label htmlFor="create-player-name" className="block text-xs text-white/50 mb-1">Your Name</label>
+          <input
+            id="create-player-name"
+            className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       placeholder-white/30"
+            placeholder="Enter your name..."
+            value={playerName}
+            onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
+            maxLength={20}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <button
+            onClick={() => {
+              if (!playerName.trim()) { setError('Enter your name first'); return; }
+              setMode('create');
+              handleCreate();
+            }}
+            className="py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                       transition-all hover:scale-105 active:scale-95 shadow-lg"
+          >
+            Create Room
+          </button>
+          <button
+            onClick={() => {
+              if (!playerName.trim()) { setError('Enter your name first'); return; }
+              setMode('join');
+            }}
+            className="py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg
+                       border border-white/20 transition-all hover:scale-105 active:scale-95"
+          >
+            Join Room
+          </button>
+        </div>
+      </div>
+    );
+  } else if (isJoinMode) {
+    panelContent = (
+      <div className="space-y-4">
+        <button
+          onClick={() => setMode('menu')}
+          className="text-xs text-white/50 hover:text-white/80 transition-colors"
+        >
+          ← Back
+        </button>
+
+        <AvatarPicker
+          name={playerName || '?'}
+          selectedAvatarId={avatarId}
+          selectedColor={avatarColor}
+          onSelectAvatar={setAvatarId}
+          onSelectColor={setAvatarColor}
+        />
+
+        <div>
+          <label htmlFor="join-player-name" className="block text-xs text-white/50 mb-1">Your Name</label>
+          <input
+            id="join-player-name"
+            className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       placeholder-white/30"
+            placeholder="Enter your name..."
+            value={playerName}
+            onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
+            maxLength={20}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="join-room-code" className="block text-xs text-white/50 mb-1">Room Code</label>
+          <input
+            id="join-room-code"
+            className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
+                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       placeholder-white/30 text-center text-2xl tracking-widest uppercase"
+            placeholder="XXXXX"
+            value={roomCode}
+            onChange={(e) => { setRoomCode(e.target.value.toUpperCase()); setError(''); }}
+            maxLength={5}
+          />
+        </div>
+
+        <button
+          onClick={handleJoin}
+          className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                     transition-all hover:scale-105 active:scale-95 shadow-lg"
+        >
+          Join Game
+        </button>
+      </div>
+    );
+  } else {
+    panelContent = (
+      <div className="text-center py-6">
+        <div className="animate-spin text-3xl mb-3">🃏</div>
+        <p className="text-white/60">Creating room...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-screen felt-bg flex items-center justify-center">
       <div className="max-w-md w-full mx-4">
@@ -98,114 +215,7 @@ export default function HomeScreen() {
         </div>
 
         <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl animate-fade-in">
-          {mode === 'menu' ? (
-            <div className="space-y-4">
-              {/* Avatar Picker (above name) */}
-              <AvatarPicker
-                name={playerName || '?'}
-                selectedAvatarId={avatarId}
-                selectedColor={avatarColor}
-                onSelectAvatar={setAvatarId}
-                onSelectColor={setAvatarColor}
-              />
-
-              {/* Name input */}
-              <div>
-                <label className="block text-xs text-white/50 mb-1">Your Name</label>
-                <input
-                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                             border border-white/10 focus:border-yellow-500/50 transition-colors
-                             placeholder-white/30"
-                  placeholder="Enter your name..."
-                  value={playerName}
-                  onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
-                  maxLength={20}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    if (!playerName.trim()) { setError('Enter your name first'); return; }
-                    setMode('create');
-                    handleCreate();
-                  }}
-                  className="py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                             transition-all hover:scale-105 active:scale-95 shadow-lg"
-                >
-                  Create Room
-                </button>
-                <button
-                  onClick={() => {
-                    if (!playerName.trim()) { setError('Enter your name first'); return; }
-                    setMode('join');
-                  }}
-                  className="py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg
-                             border border-white/20 transition-all hover:scale-105 active:scale-95"
-                >
-                  Join Room
-                </button>
-              </div>
-            </div>
-          ) : mode === 'join' ? (
-            <div className="space-y-4">
-              <button
-                onClick={() => setMode('menu')}
-                className="text-xs text-white/50 hover:text-white/80 transition-colors"
-              >
-                ← Back
-              </button>
-
-              {/* Avatar Picker */}
-              <AvatarPicker
-                name={playerName || '?'}
-                selectedAvatarId={avatarId}
-                selectedColor={avatarColor}
-                onSelectAvatar={setAvatarId}
-                onSelectColor={setAvatarColor}
-              />
-
-              {/* Name input (shown in join mode so link users can enter their name) */}
-              <div>
-                <label className="block text-xs text-white/50 mb-1">Your Name</label>
-                <input
-                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                             border border-white/10 focus:border-yellow-500/50 transition-colors
-                             placeholder-white/30"
-                  placeholder="Enter your name..."
-                  value={playerName}
-                  onChange={(e) => { setPlayerName(e.target.value); setError(''); }}
-                  maxLength={20}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-white/50 mb-1">Room Code</label>
-                <input
-                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                             border border-white/10 focus:border-yellow-500/50 transition-colors
-                             placeholder-white/30 text-center text-2xl tracking-widest uppercase"
-                  placeholder="XXXXX"
-                  value={roomCode}
-                  onChange={(e) => { setRoomCode(e.target.value.toUpperCase()); setError(''); }}
-                  maxLength={5}
-                />
-              </div>
-
-              <button
-                onClick={handleJoin}
-                className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                           transition-all hover:scale-105 active:scale-95 shadow-lg"
-              >
-                Join Game
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <div className="animate-spin text-3xl mb-3">🃏</div>
-              <p className="text-white/60">Creating room...</p>
-            </div>
-          )}
+          {panelContent}
 
           {error && (
             <div className="mt-3 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm text-center">

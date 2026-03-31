@@ -8,13 +8,14 @@ interface TurnTimerProps {
   onWarning?: () => void;
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export default function TurnTimer({
   turnStartedAt,
   turnTimeoutMs,
   isMyTurn = false,
   size = 48,
   onWarning,
-}: TurnTimerProps) {
+}: Readonly<TurnTimerProps>) {
   const [progress, setProgress] = useState(1);
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(turnTimeoutMs / 1000));
   const warningFired = useRef(false);
@@ -50,10 +51,12 @@ export default function TurnTimer({
   const strokeDashoffset = circumference * (1 - progress);
 
   // Color transitions: green → yellow → red
-  const color =
-    progress > 0.5 ? '#22c55e' :
-    progress > 0.25 ? '#eab308' :
-    '#ef4444';
+  let color = '#ef4444';
+  if (progress > 0.5) {
+    color = '#22c55e';
+  } else if (progress > 0.25) {
+    color = '#eab308';
+  }
 
   const isUrgent = secondsLeft <= 10;
 

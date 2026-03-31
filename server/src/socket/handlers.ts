@@ -55,7 +55,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
   }
 
   // Periodic cleanup: remove stale rooms and rate limit entries
-  const cleanupInterval = setInterval(() => {
+  setInterval(() => {
     const now = Date.now();
     // Clean up stale rooms (no connected players for >1 hour)
     for (const [roomId, room] of roomManager.getAllRooms()) {
@@ -381,6 +381,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     });
 
     // ===== PLAY CARD =====
+    // eslint-disable-next-line sonarjs/cognitive-complexity
     socket.on('play-card', (data) => {
       if (isRateLimited(socket.id)) return;
       const mapping = roomManager.getMapping(socket.id);
@@ -410,11 +411,14 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       if (result.effect && result.effect !== 'none') {
         const state = engine.getState();
         const targetPlayer = state.players[state.currentPlayerIndex];
+        let amount: number | undefined;
+        if (result.effect === 'draw_two' || result.effect === 'draw_five') {
+          amount = state.pendingDrawAmount;
+        }
         io.to(mapping.roomId).emit('effect-applied', {
           effect: result.effect,
           targetPlayerId: targetPlayer?.id || mapping.playerId,
-          amount: result.effect === 'draw_two' ? state.pendingDrawAmount :
-                  result.effect === 'draw_five' ? state.pendingDrawAmount : undefined,
+          amount,
         });
         if (result.effect === 'skip') emitSound(mapping.roomId, 'skip');
         if (result.effect === 'wild_suit') emitSound(mapping.roomId, 'wild');
@@ -652,6 +656,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     });
 
     // ===== KICK PLAYER (host only) =====
+    // eslint-disable-next-line sonarjs/cognitive-complexity
     socket.on('kick-player', (data) => {
       if (isRateLimited(socket.id)) return;
       const mapping = roomManager.getMapping(socket.id);
@@ -804,9 +809,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     });
   });
 
+  // eslint-disable-next-line sonarjs/cognitive-complexity
   function handleLeave(socket: TypedSocket) {
-    // Before leaveRoom, capture mapping for kick timer
-    const mapping = roomManager.getMapping(socket.id);
 
     const result = roomManager.leaveRoom(socket.id);
     if (!result) return;
@@ -885,7 +889,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     const sids: string[] = [];
     for (const sid of roomSockets) {
       const mapping = roomManager.getMapping(sid);
-      if (mapping && mapping.playerId === playerId) {
+      if (mapping?.playerId === playerId) {
         sids.push(sid);
       }
     }
@@ -900,7 +904,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     const sids: string[] = [];
     for (const sid of roomSockets) {
       const mapping = roomManager.getSpectatorMapping(sid);
-      if (mapping && mapping.spectatorId === spectatorId) {
+      if (mapping?.spectatorId === spectatorId) {
         sids.push(sid);
       }
     }

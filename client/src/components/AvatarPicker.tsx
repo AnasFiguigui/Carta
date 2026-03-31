@@ -1,4 +1,4 @@
-import { AvatarId, AVATAR_IDS } from 'shared';
+import { AvatarId } from 'shared';
 import Avatar from './Avatar';
 
 const AVATAR_COLORS = [
@@ -20,7 +20,7 @@ export default function AvatarPicker({
   name,
   onSelectAvatar,
   onSelectColor,
-}: AvatarPickerProps) {
+}: Readonly<AvatarPickerProps>) {
   return (
     <div className="flex flex-col items-center gap-3">
       {/* Preview */}

@@ -27,8 +27,12 @@ export default function Lobby() {
   const [copied, setCopied] = useState(false);
 
   const inviteLink = roomId
-    ? `${window.location.origin}?room=${roomId}`
+    ? `${globalThis.location.origin}?room=${roomId}`
     : '';
+  const me = players.find((p) => p.id === playerId);
+  const isMeReady = !!me?.isReady;
+  const filledSlotIds = Array.from({ length: 6 }, (_, idx) => `slot-${idx + 1}`);
+  const emptySlotIds = Array.from({ length: Math.max(0, 6 - players.length) }, (_, idx) => `empty-slot-${players.length + idx + 1}`);
 
   const copyRoomCode = () => {
     if (roomId) {
@@ -53,14 +57,16 @@ export default function Lobby() {
           <div className="text-center mb-6">
             <p className="text-xs text-white/50 mb-1">Room Code</p>
             <div className="flex items-center justify-center gap-2">
-              <span
+              <button
+                type="button"
                 className="text-4xl font-bold text-yellow-300 tracking-widest cursor-pointer hover:text-yellow-200 transition-colors"
                 onClick={copyRoomCode}
                 title="Click to copy"
               >
                 {roomId}
-              </span>
+              </button>
               <button
+                type="button"
                 onClick={copyRoomCode}
                 className="text-white/40 hover:text-white/80 text-sm transition-colors"
                 title="Copy room code"
@@ -87,9 +93,9 @@ export default function Lobby() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-white/60">Players ({players.length}/6)</span>
               <div className="flex gap-1">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {filledSlotIds.map((slotId, i) => (
                   <div
-                    key={i}
+                    key={slotId}
                     className={`w-2 h-2 rounded-full ${i < players.length ? 'bg-yellow-400' : 'bg-white/10'}`}
                   />
                 ))}
@@ -121,25 +127,28 @@ export default function Lobby() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {player.id === hostId ? (
+                    {player.id === hostId && (
                       <span className="text-xs text-yellow-300">Host</span>
-                    ) : player.isReady ? (
-                      <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs border border-green-500/30">
-                        Ready ✓
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-white/40 text-xs border border-white/10">
-                        Not Ready
-                      </span>
+                    )}
+                    {player.id !== hostId && (
+                      player.isReady ? (
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs border border-green-500/30">
+                          Ready ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-white/5 text-white/40 text-xs border border-white/10">
+                          Not Ready
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
               ))}
 
               {/* Empty slots */}
-              {Array.from({ length: 6 - players.length }).map((_, i) => (
+              {emptySlotIds.map((slotId) => (
                 <div
-                  key={`empty-${i}`}
+                  key={slotId}
                   className="flex items-center px-4 py-3 rounded-lg border border-dashed border-white/10 text-white/20 text-sm"
                 >
                   Waiting for player...
@@ -167,6 +176,7 @@ export default function Lobby() {
           <div className="flex gap-3">
             {isHost ? (
               <button
+                type="button"
                 onClick={handleStartGame}
                 disabled={!canStart}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
@@ -178,17 +188,19 @@ export default function Lobby() {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleToggleReady}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
-                  ${players.find((p) => p.id === playerId)?.isReady
+                  ${isMeReady
                     ? 'bg-green-600 hover:bg-green-500 text-white active:scale-95'
                     : 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105 active:scale-95'}`}
               >
-                {players.find((p) => p.id === playerId)?.isReady ? '✓ Ready!' : 'Ready Up'}
+                {isMeReady ? '✓ Ready!' : 'Ready Up'}
               </button>
             )}
 
             <button
+              type="button"
               onClick={handleLeave}
               className="px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg
                          text-sm border border-red-500/20 transition-all active:scale-95"

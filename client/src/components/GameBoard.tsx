@@ -14,11 +14,11 @@ import { playSound } from '../lib/sounds';
 
 /** Detect mobile via viewport width */
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(globalThis.innerWidth < 768);
   React.useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    const handler = () => setIsMobile(globalThis.innerWidth < 768);
+    globalThis.addEventListener('resize', handler);
+    return () => globalThis.removeEventListener('resize', handler);
   }, []);
   return isMobile;
 }
@@ -59,11 +59,10 @@ function getOpponentPositions(
   return layouts[others] || layouts[5];
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export default function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const playerId = useGameStore((s) => s.playerId);
-  const timerExpiredPlayerId = useGameStore((s) => s.timerExpiredPlayerId);
-  const autoDrawPlayerId = useGameStore((s) => s.autoDrawPlayerId);
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
   const cardAnimationType = useGameStore((s) => s.cardAnimationType);
@@ -129,10 +128,6 @@ export default function GameBoard() {
       </div>
     );
   }
-
-  const handlePassTurn = () => {
-    getSocket().emit('pass-turn');
-  };
 
   const handleRestartGame = () => {
     getSocket().emit('restart-game');
@@ -235,7 +230,7 @@ export default function GameBoard() {
       <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
         <button
           onClick={() => {
-            const link = `${window.location.origin}?room=${gameState.roomId}`;
+            const link = `${globalThis.location.origin}?room=${gameState.roomId}`;
             navigator.clipboard.writeText(link).catch(() => {});
             setCopiedLink(true);
             setTimeout(() => setCopiedLink(false), 1500);
@@ -351,14 +346,14 @@ export default function GameBoard() {
             />
           </div>
           <span className="text-white/70 text-xs font-medium">{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
-          {!myIsFinished ? (
+          {myIsFinished ? (
+            <div className="text-green-400 text-sm font-bold mt-1">✅ Finished!</div>
+          ) : (
             <PlayerHand
               cards={gameState.myHand}
               playableCardIds={playableCardIds}
               isMyTurn={isMyTurn}
             />
-          ) : (
-            <div className="text-green-400 text-sm font-bold mt-1">✅ Finished!</div>
           )}
         </div>
       ) : (
@@ -396,7 +391,7 @@ export default function GameBoard() {
             {/* Host controls */}
             {isHostForOverlay && !isSpectatorForOverlay && (
               <div className="flex flex-col gap-2 mt-4">
-                <p className="text-white/50 text-xs mb-1">{roomPlayers.length} player{roomPlayers.length !== 1 ? 's' : ''} in room</p>
+                <p className="text-white/50 text-xs mb-1">{roomPlayers.length} player{roomPlayers.length === 1 ? '' : 's'} in room</p>
                 {roomPlayers.filter(p => p.isConnected).length >= 2 ? (
                   <button
                     onClick={handleRestartGame}
@@ -447,10 +442,14 @@ export default function GameBoard() {
       {/* Chat panel — desktop: always shown bottom-right; mobile: overlay */}
       {isMobile ? (
         showChat && (
-          <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 animate-fade-in"
-               onClick={() => setShowChat(false)}>
-            <div className="w-full max-w-md h-[50vh] pb-4 px-2"
-                 onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 animate-fade-in">
+            <button
+              type="button"
+              className="absolute inset-0"
+              onClick={() => setShowChat(false)}
+              aria-label="Close chat"
+            />
+            <div className="relative w-full max-w-md h-[50vh] pb-4 px-2">
               <ChatPanel />
             </div>
           </div>
@@ -463,13 +462,15 @@ export default function GameBoard() {
 
       {/* Rules Modal */}
       {showRules && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-fade-in"
-          onClick={() => setShowRules(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-fade-in">
+          <button
+            type="button"
+            className="absolute inset-0"
+            onClick={() => setShowRules(false)}
+            aria-label="Close rules"
+          />
           <div
-            className="bg-gray-900/95 border border-yellow-500/50 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="relative bg-gray-900/95 border border-yellow-500/50 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-yellow-300">📖 Carta Rules</h2>

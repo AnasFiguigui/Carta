@@ -22,9 +22,13 @@ export default function CenterArea({
   pendingDrawAmount,
   currentPlayerId,
   myPlayerId,
-}: CenterAreaProps) {
+}: Readonly<CenterAreaProps>) {
   const lastPlayedCard = useGameStore((s) => s.lastPlayedCard);
   const gameState = useGameStore((s) => s.gameState);
+  let drawTitle = 'Not your turn';
+  if (isMyTurn) {
+    drawTitle = pendingDrawAmount > 0 ? `Draw ${pendingDrawAmount} cards` : 'Draw a card';
+  }
 
   const handleDrawCard = () => {
     if (!isMyTurn) return;
@@ -35,10 +39,13 @@ export default function CenterArea({
     <div className="flex items-center justify-center gap-16">
       {/* Draw Pile (Deck) */}
       <div className="relative">
-        <div
+        <button
+          type="button"
           className={`deck-pile relative ${isMyTurn ? 'cursor-pointer' : 'cursor-default'}`}
           onClick={handleDrawCard}
-          title={isMyTurn ? (pendingDrawAmount > 0 ? `Draw ${pendingDrawAmount} cards` : 'Draw a card') : 'Not your turn'}
+          title={drawTitle}
+          disabled={!isMyTurn}
+          aria-label={drawTitle}
         >
           {/* Stacked deck visual */}
           {[3, 2, 1, 0].map((offset) => (
@@ -86,7 +93,7 @@ export default function CenterArea({
               </div>
             </div>
           )}
-        </div>
+        </button>
       </div>
 
       {/* Discard Pile */}

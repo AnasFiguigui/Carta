@@ -30,7 +30,7 @@ export default function OpponentHand({
   isFinished = false,
   isKicked = false,
   isHost = false,
-}: OpponentProps) {
+}: Readonly<OpponentProps>) {
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
 
@@ -40,6 +40,7 @@ export default function OpponentHand({
   const startAngle = -fanAngle / 2;
 
   const showTimer = isCurrentTurn && !isFinished && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
+  const isConnected = player.isConnected;
 
   return (
     <div
@@ -86,7 +87,7 @@ export default function OpponentHand({
           const y = cy + Math.sin(radians) * radius - 30;
           return (
             <div
-              key={i}
+              key={`${player.id}-card-back-${i}`}
               className="absolute opponent-card"
               style={{
                 width: 40,
@@ -116,7 +117,7 @@ export default function OpponentHand({
       <div
         className={`-mt-1 px-3 py-1 rounded-full text-xs font-bold text-center whitespace-nowrap
           ${isCurrentTurn ? 'turn-indicator' : ''}
-          ${!player.isConnected ? 'opacity-50' : ''}`}
+          ${isConnected ? '' : 'opacity-50'}`}
         style={{
           background: isCurrentTurn
             ? 'rgba(255, 215, 0, 0.3)'
@@ -127,7 +128,7 @@ export default function OpponentHand({
       >
         <span>{player.name}</span>
         <span className="ml-1.5 opacity-70">({cardCount})</span>
-        {!player.isConnected && <span className="ml-1">📡</span>}
+        {!isConnected && <span className="ml-1">📡</span>}
         {isHost && (
           <button
             onClick={(e) => {

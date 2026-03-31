@@ -1,6 +1,9 @@
 import { SoundType } from 'shared';
 
-const AudioCtx = typeof window !== 'undefined' ? (window.AudioContext || (window as any).webkitAudioContext) : null;
+const hasWindow = globalThis.window !== undefined;
+const AudioCtx = hasWindow
+  ? (globalThis.window.AudioContext || (globalThis.window as any).webkitAudioContext)
+  : null;
 
 let ctx: AudioContext | null = null;
 
@@ -8,7 +11,7 @@ function getCtx(): AudioContext {
   if (!ctx && AudioCtx) {
     ctx = new AudioCtx();
   }
-  return ctx!;
+  return ctx as AudioContext;
 }
 
 function playTone(frequency: number, duration: number, type: OscillatorType = 'sine', volume = 0.15) {

@@ -8,7 +8,7 @@ interface SpectatorPanelProps {
   canJoin: boolean; // true if room has space & game not active
 }
 
-export default function SpectatorPanel({ spectators, canJoin }: SpectatorPanelProps) {
+export default function SpectatorPanel({ spectators, canJoin }: Readonly<SpectatorPanelProps>) {
   const myPlayerId = useGameStore(s => s.playerId);
 
   if (spectators.length === 0) return null;

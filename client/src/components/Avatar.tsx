@@ -21,6 +21,7 @@ const SIZES: Record<string, { class: string; px: number }> = {
   xl: { class: 'w-20 h-20 text-2xl', px: 80 },
 };
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export default function Avatar({
   name,
   avatarId,
@@ -32,14 +33,19 @@ export default function Avatar({
   turnStartedAt,
   turnTimeoutMs,
   onTimerWarning,
-}: AvatarProps) {
+}: Readonly<AvatarProps>) {
   const letter = name.charAt(0).toUpperCase();
   const sizeInfo = SIZES[size];
   const [progress, setProgress] = useState(1);
   const warningFired = useRef(false);
   const rafRef = useRef<number>(0);
 
-  const dotSize = size === 'sm' ? 8 : size === 'md' ? 10 : 12;
+  let dotSize = 12;
+  if (size === 'sm') {
+    dotSize = 8;
+  } else if (size === 'md') {
+    dotSize = 10;
+  }
 
   const showTimer = isCurrentTurn && !!turnStartedAt && turnStartedAt > 0 && !!turnTimeoutMs && turnTimeoutMs > 0;
 
@@ -51,9 +57,11 @@ export default function Avatar({
     warningFired.current = false;
 
     const tick = () => {
-      const elapsed = Date.now() - turnStartedAt!;
-      const remaining = Math.max(0, turnTimeoutMs! - elapsed);
-      const pct = remaining / turnTimeoutMs!;
+      const startedAt = turnStartedAt ?? 0;
+      const timeout = turnTimeoutMs ?? 1;
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, timeout - elapsed);
+      const pct = remaining / timeout;
       setProgress(pct);
 
       if (remaining <= 10000 && !warningFired.current && onTimerWarning) {
@@ -78,13 +86,68 @@ export default function Avatar({
   const strokeDashoffset = circumference * (1 - progress);
 
   // Color transitions: green → yellow → orange → red
-  const ringColor =
-    progress > 0.5 ? '#22c55e' :
-    progress > 0.25 ? '#eab308' :
-    progress > 0.1 ? '#f97316' :
-    '#ef4444';
+  let ringColor = '#ef4444';
+  if (progress > 0.5) {
+    ringColor = '#22c55e';
+  } else if (progress > 0.25) {
+    ringColor = '#eab308';
+  } else if (progress > 0.1) {
+    ringColor = '#f97316';
+  }
 
   const isUrgent = showTimer && progress < 10 / 30;
+  let ringElement: JSX.Element | null = null;
+  if (showTimer) {
+    ringElement = (
+      <svg
+        width={ringSize}
+        height={ringSize}
+        className="absolute inset-0 rotate-[-90deg]"
+      >
+        <circle
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={ringRadius}
+          fill="transparent"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={3.5}
+        />
+        <circle
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={ringRadius}
+          fill="transparent"
+          stroke={ringColor}
+          strokeWidth={3.5}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          style={{
+            transition: 'stroke 0.3s ease',
+            filter: `drop-shadow(0 0 ${isUrgent ? 8 : 4}px ${ringColor})`,
+          }}
+        />
+      </svg>
+    );
+  } else if (isCurrentTurn) {
+    ringElement = (
+      <svg
+        width={ringSize}
+        height={ringSize}
+        className="absolute inset-0"
+      >
+        <circle
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={ringRadius}
+          fill="transparent"
+          stroke="#facc15"
+          strokeWidth={2.5}
+          style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.5))' }}
+        />
+      </svg>
+    );
+  }
 
   return (
     <div
@@ -93,55 +156,7 @@ export default function Avatar({
       title={name}
     >
       {/* Timer ring or static turn ring */}
-      {showTimer ? (
-        <svg
-          width={ringSize}
-          height={ringSize}
-          className="absolute inset-0 rotate-[-90deg]"
-        >
-          {/* Background track */}
-          <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            fill="transparent"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth={3.5}
-          />
-          {/* Animated progress ring */}
-          <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            fill="transparent"
-            stroke={ringColor}
-            strokeWidth={3.5}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            style={{
-              transition: 'stroke 0.3s ease',
-              filter: `drop-shadow(0 0 ${isUrgent ? 8 : 4}px ${ringColor})`,
-            }}
-          />
-        </svg>
-      ) : isCurrentTurn ? (
-        <svg
-          width={ringSize}
-          height={ringSize}
-          className="absolute inset-0"
-        >
-          <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            fill="transparent"
-            stroke="#facc15"
-            strokeWidth={2.5}
-            style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.5))' }}
-          />
-        </svg>
-      ) : null}
+      {ringElement}
 
       {/* Avatar circle */}
       <div

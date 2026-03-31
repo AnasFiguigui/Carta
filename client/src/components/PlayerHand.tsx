@@ -10,7 +10,7 @@ interface PlayerHandProps {
   isMyTurn: boolean;
 }
 
-export default function PlayerHand({ cards, playableCardIds, isMyTurn }: PlayerHandProps) {
+export default function PlayerHand({ cards, playableCardIds, isMyTurn }: Readonly<PlayerHandProps>) {
 
   const handlePlayCard = (card: CardType) => {
     if (!isMyTurn) return;

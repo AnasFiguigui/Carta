@@ -1,15 +1,13 @@
 import {
   Card,
-  CardValue,
   Suit,
   CARD_VALUES,
   CardEffect,
   getCardEffect,
-  isValidPlay,
 } from 'shared';
 
 // Re-export shared logic so existing imports from deck.ts still work
-export { getCardEffect, isValidPlay };
+export { getCardEffect, isValidPlay } from 'shared';
 
 /** Build a fresh 40-card deck */
 export function createDeck(): Card[] {

@@ -9,7 +9,6 @@ export default function App() {
   useSocketEvents();
 
   const view = useGameStore((s) => s.view);
-  const isConnected = useGameStore((s) => s.isConnected);
 
   return (
     <div className="w-full h-screen relative">

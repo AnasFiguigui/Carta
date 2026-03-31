@@ -25,12 +25,12 @@ function generateRoomCode(): string {
 }
 
 export class RoomManager {
-  private rooms: Map<string, Room> = new Map();
-  private engines: Map<string, GameEngine> = new Map();
+  private readonly rooms: Map<string, Room> = new Map();
+  private readonly engines: Map<string, GameEngine> = new Map();
   /** Maps socket ID → { roomId, playerId } */
-  private socketMap: Map<string, { roomId: string; playerId: string }> = new Map();
+  private readonly socketMap: Map<string, { roomId: string; playerId: string }> = new Map();
   /** Maps socket ID → spectator mapping for spectators */
-  private spectatorSocketMap: Map<string, { roomId: string; spectatorId: string }> = new Map();
+  private readonly spectatorSocketMap: Map<string, { roomId: string; spectatorId: string }> = new Map();
 
   createRoom(socketId: string, playerName: string, avatarId?: AvatarId, avatarColor?: string): { room: Room; playerId: string } {
     let roomId: string;
@@ -207,7 +207,7 @@ export class RoomManager {
     const room = this.rooms.get(mapping.roomId);
     if (!room) return { success: false, error: 'Room not found' };
 
-    if (room.gameState && room.gameState.phase === GamePhase.Playing) {
+    if (room.gameState?.phase === GamePhase.Playing) {
       return { success: false, error: 'Cannot spectate during active game' };
     }
 
@@ -239,6 +239,7 @@ export class RoomManager {
     return { success: true, room, spectatorId: player.id };
   }
 
+  // eslint-disable-next-line sonarjs/cognitive-complexity
   leaveRoom(socketId: string): {
     roomId: string;
     playerId: string;
