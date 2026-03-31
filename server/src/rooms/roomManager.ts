@@ -1,9 +1,18 @@
-import { Player, Room, RoomInfo, GamePhase, PublicPlayer } from 'shared';
+import { Player, Room, RoomInfo, GamePhase, PublicPlayer, AvatarId, Spectator } from 'shared';
 import { v4 as uuidv4 } from 'uuid';
 import { GameEngine } from '../game/engine';
 
 const MAX_PLAYERS = 6;
 const ROOM_CODE_LENGTH = 5;
+
+const AVATAR_COLORS = [
+  '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
+  '#EC4899', '#F97316', '#14B8A6', '#6366F1', '#D946EF',
+];
+
+function randomAvatarColor(): string {
+  return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+}
 
 /** Generate a human-friendly room code */
 function generateRoomCode(): string {
@@ -20,8 +29,10 @@ export class RoomManager {
   private engines: Map<string, GameEngine> = new Map();
   /** Maps socket ID → { roomId, playerId } */
   private socketMap: Map<string, { roomId: string; playerId: string }> = new Map();
+  /** Maps socket ID → spectator mapping for spectators */
+  private spectatorSocketMap: Map<string, { roomId: string; spectatorId: string }> = new Map();
 
-  createRoom(socketId: string, playerName: string): { room: Room; playerId: string } {
+  createRoom(socketId: string, playerName: string, avatarId?: AvatarId, avatarColor?: string): { room: Room; playerId: string } {
     let roomId: string;
     do {
       roomId = generateRoomCode();
@@ -36,12 +47,15 @@ export class RoomManager {
       isConnected: true,
       isReady: false,
       seatIndex: 0,
+      avatarId: avatarId || 'default',
+      avatarColor: avatarColor || randomAvatarColor(),
     };
 
     const room: Room = {
       id: roomId,
       hostId: playerId,
       players: [player],
+      spectators: [],
       maxPlayers: MAX_PLAYERS,
       gameState: null,
       createdAt: Date.now(),
@@ -53,11 +67,12 @@ export class RoomManager {
     return { room, playerId };
   }
 
-  joinRoom(socketId: string, roomId: string, playerName: string): {
+  joinRoom(socketId: string, roomId: string, playerName: string, avatarId?: AvatarId, avatarColor?: string): {
     success: boolean;
     error?: string;
     room?: Room;
     playerId?: string;
+    asSpectator?: boolean;
   } {
     const room = this.rooms.get(roomId.toUpperCase());
     if (!room) {
@@ -76,11 +91,13 @@ export class RoomManager {
         }
         return { success: true, room, playerId: existing.id };
       }
-      return { success: false, error: 'Game already in progress' };
+      // Game in progress: join as spectator
+      return this.joinAsSpectator(socketId, room, playerName, avatarId, avatarColor);
     }
 
     if (room.players.length >= room.maxPlayers) {
-      return { success: false, error: 'Room is full' };
+      // Room full: join as spectator
+      return this.joinAsSpectator(socketId, room, playerName, avatarId, avatarColor);
     }
 
     // Check for duplicate names
@@ -97,6 +114,8 @@ export class RoomManager {
       isConnected: true,
       isReady: false,
       seatIndex: room.players.length,
+      avatarId: avatarId || 'default',
+      avatarColor: avatarColor || randomAvatarColor(),
     };
 
     room.players.push(player);
@@ -105,12 +124,135 @@ export class RoomManager {
     return { success: true, room, playerId };
   }
 
+  private joinAsSpectator(socketId: string, room: Room, name: string, avatarId?: AvatarId, avatarColor?: string): {
+    success: boolean;
+    room?: Room;
+    playerId?: string;
+    asSpectator?: boolean;
+  } {
+    const spectatorId = uuidv4();
+    const spectator: Spectator = {
+      id: spectatorId,
+      name,
+      avatarId: avatarId || 'default',
+      avatarColor: avatarColor || randomAvatarColor(),
+    };
+    room.spectators.push(spectator);
+    this.spectatorSocketMap.set(socketId, { roomId: room.id, spectatorId });
+    return { success: true, room, playerId: spectatorId, asSpectator: true };
+  }
+
+  /** Promote a spectator to player (if room has space and game not active) */
+  promoteSpectatorToPlayer(socketId: string): {
+    success: boolean;
+    error?: string;
+    room?: Room;
+    playerId?: string;
+  } {
+    const specMapping = this.spectatorSocketMap.get(socketId);
+    if (!specMapping) return { success: false, error: 'Not a spectator' };
+
+    const room = this.rooms.get(specMapping.roomId);
+    if (!room) return { success: false, error: 'Room not found' };
+
+    if (room.gameState && room.gameState.phase !== GamePhase.Lobby && room.gameState.phase !== GamePhase.GameOver) {
+      return { success: false, error: 'Game in progress' };
+    }
+
+    if (room.players.length >= room.maxPlayers) {
+      return { success: false, error: 'Room is full' };
+    }
+
+    const spectator = room.spectators.find(s => s.id === specMapping.spectatorId);
+    if (!spectator) return { success: false, error: 'Spectator not found' };
+
+    // Remove from spectators
+    room.spectators = room.spectators.filter(s => s.id !== spectator.id);
+    this.spectatorSocketMap.delete(socketId);
+
+    // Create as player
+    const playerId = uuidv4();
+    const player: Player = {
+      id: playerId,
+      name: spectator.name,
+      hand: [],
+      cardCount: 0,
+      isConnected: true,
+      isReady: false,
+      seatIndex: room.players.length,
+      avatarId: spectator.avatarId,
+      avatarColor: spectator.avatarColor,
+    };
+    room.players.push(player);
+    this.socketMap.set(socketId, { roomId: room.id, playerId });
+
+    return { success: true, room, playerId };
+  }
+
+  /** Move a player to spectators */
+  demotePlayerToSpectator(socketId: string): {
+    success: boolean;
+    error?: string;
+    room?: Room;
+    spectatorId?: string;
+  } {
+    const mapping = this.socketMap.get(socketId);
+    if (!mapping) return { success: false, error: 'Not in a room' };
+
+    const room = this.rooms.get(mapping.roomId);
+    if (!room) return { success: false, error: 'Room not found' };
+
+    if (room.gameState && room.gameState.phase === GamePhase.Playing) {
+      return { success: false, error: 'Cannot spectate during active game' };
+    }
+
+    const player = room.players.find(p => p.id === mapping.playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Remove from players
+    room.players = room.players.filter(p => p.id !== player.id);
+    this.socketMap.delete(socketId);
+
+    // Add as spectator
+    const spectator: Spectator = {
+      id: player.id,
+      name: player.name,
+      avatarId: player.avatarId,
+      avatarColor: player.avatarColor,
+    };
+    room.spectators.push(spectator);
+    this.spectatorSocketMap.set(socketId, { roomId: room.id, spectatorId: player.id });
+
+    // Reassign host if needed
+    if (room.hostId === player.id && room.players.length > 0) {
+      room.hostId = room.players[0].id;
+    }
+
+    // Reassign seat indices
+    room.players.forEach((p, i) => { p.seatIndex = i; });
+
+    return { success: true, room, spectatorId: player.id };
+  }
+
   leaveRoom(socketId: string): {
     roomId: string;
     playerId: string;
     room: Room | null;
     newHostId?: string;
+    wasSpectator?: boolean;
   } | null {
+    // Check if they're a spectator first
+    const specMapping = this.spectatorSocketMap.get(socketId);
+    if (specMapping) {
+      this.spectatorSocketMap.delete(socketId);
+      const room = this.rooms.get(specMapping.roomId);
+      if (room) {
+        room.spectators = room.spectators.filter(s => s.id !== specMapping.spectatorId);
+        return { roomId: specMapping.roomId, playerId: specMapping.spectatorId, room, wasSpectator: true };
+      }
+      return null;
+    }
+
     const mapping = this.socketMap.get(socketId);
     if (!mapping) return null;
 
@@ -121,7 +263,7 @@ export class RoomManager {
     if (!room) return null;
 
     // If game is in progress, mark as disconnected instead of removing
-    if (room.gameState && room.gameState.phase !== GamePhase.Lobby) {
+    if (room.gameState && room.gameState.phase !== GamePhase.Lobby && room.gameState.phase !== GamePhase.GameOver) {
       const player = room.players.find(p => p.id === playerId);
       if (player) {
         player.isConnected = false;
@@ -136,8 +278,8 @@ export class RoomManager {
     // Remove player from lobby
     room.players = room.players.filter(p => p.id !== playerId);
 
-    // If room is empty, delete it
-    if (room.players.length === 0) {
+    // If room is empty (no players AND no spectators), delete it
+    if (room.players.length === 0 && room.spectators.length === 0) {
       this.rooms.delete(roomId);
       this.engines.delete(roomId);
       return { roomId, playerId, room: null };
@@ -145,7 +287,7 @@ export class RoomManager {
 
     // Reassign host if needed
     let newHostId: string | undefined;
-    if (room.hostId === playerId) {
+    if (room.hostId === playerId && room.players.length > 0) {
       room.hostId = room.players[0].id;
       newHostId = room.hostId;
     }
@@ -192,6 +334,9 @@ export class RoomManager {
       return { success: false, error: 'Not all players are ready' };
     }
 
+    // Reset ready states for the new game
+    room.players.forEach(p => { p.isReady = false; });
+
     const engine = new GameEngine(room.id, room.players);
     engine.startGame();
 
@@ -199,6 +344,25 @@ export class RoomManager {
     room.gameState = engine.getState();
 
     return { success: true, engine, room };
+  }
+
+  /** Return game to lobby (post-game) */
+  returnToLobby(roomId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    room.gameState = null;
+    this.engines.delete(roomId);
+
+    // Reset player state for lobby
+    room.players.forEach((p, i) => {
+      p.hand = [];
+      p.cardCount = 0;
+      p.isReady = false;
+      p.seatIndex = i;
+    });
+
+    return room;
   }
 
   getEngine(roomId: string): GameEngine | undefined {
@@ -220,6 +384,7 @@ export class RoomManager {
       playerCount: room.players.length,
       maxPlayers: room.maxPlayers,
       phase: room.gameState?.phase ?? GamePhase.Lobby,
+      spectators: room.spectators,
       players: room.players.map(p => ({
         id: p.id,
         name: p.name,
@@ -227,7 +392,13 @@ export class RoomManager {
         isConnected: p.isConnected,
         isReady: p.isReady,
         seatIndex: p.seatIndex,
+        avatarId: p.avatarId,
+        avatarColor: p.avatarColor,
       })),
     };
+  }
+
+  getSpectatorMapping(socketId: string): { roomId: string; spectatorId: string } | undefined {
+    return this.spectatorSocketMap.get(socketId);
   }
 }

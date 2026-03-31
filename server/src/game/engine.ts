@@ -10,6 +10,7 @@ import {
   GameAction,
   ClientGameState,
   PublicPlayer,
+  Spectator,
 } from 'shared';
 import {
   createDeck,
@@ -20,7 +21,8 @@ import {
   isValidPlay,
 } from './deck';
 
-const CARDS_PER_PLAYER = 7;
+const CARDS_PER_PLAYER = 4;
+const TURN_TIMEOUT_MS = 30_000;
 
 export class GameEngine {
   private state: GameState;
@@ -39,7 +41,8 @@ export class GameEngine {
       forcedSuit: null,
       winnerId: null,
       lastAction: null,
-      turnTimeoutMs: 60000,
+      turnTimeoutMs: TURN_TIMEOUT_MS,
+      turnStartedAt: 0,
     };
   }
 
@@ -74,6 +77,7 @@ export class GameEngine {
     this.state.pendingDrawAmount = 0;
     this.state.forcedSuit = null;
     this.state.winnerId = null;
+    this.state.turnStartedAt = Date.now();
   }
 
   /** Get the full authoritative state */
@@ -82,7 +86,7 @@ export class GameEngine {
   }
 
   /** Build client-safe state for a specific player */
-  getClientState(playerId: string): ClientGameState {
+  getClientState(playerId: string, spectators: Spectator[] = []): ClientGameState {
     const player = this.state.players.find(p => p.id === playerId);
     const publicPlayers: PublicPlayer[] = this.state.players.map(p => ({
       id: p.id,
@@ -91,6 +95,8 @@ export class GameEngine {
       isConnected: p.isConnected,
       isReady: p.isReady,
       seatIndex: p.seatIndex,
+      avatarId: p.avatarId,
+      avatarColor: p.avatarColor,
     }));
 
     // Top 3 cards of discard pile for visual spread
@@ -111,6 +117,9 @@ export class GameEngine {
       forcedSuit: this.state.forcedSuit,
       winnerId: this.state.winnerId,
       lastAction: this.state.lastAction,
+      turnStartedAt: this.state.turnStartedAt,
+      turnTimeoutMs: this.state.turnTimeoutMs,
+      spectators,
     };
   }
 
@@ -125,6 +134,7 @@ export class GameEngine {
     let steps = skip ? 2 : 1;
     this.state.currentPlayerIndex =
       (this.state.currentPlayerIndex + this.state.direction * steps + count * steps) % count;
+    this.state.turnStartedAt = Date.now();
   }
 
   /** Recycle discard pile into deck when deck is empty */
@@ -374,6 +384,48 @@ export class GameEngine {
     if (player) {
       player.isConnected = true;
     }
+  }
+
+  /** Auto-draw penalty when timer expires */
+  autoDrawCard(): {
+    success: boolean;
+    playerId: string;
+    drawnCount: number;
+    nextPlayerIndex: number;
+  } {
+    if (this.state.phase !== GamePhase.Playing && this.state.phase !== GamePhase.ChoosingWildSuit) {
+      return { success: false, playerId: '', drawnCount: 0, nextPlayerIndex: this.state.currentPlayerIndex };
+    }
+
+    const currentPlayer = this.getCurrentPlayer();
+
+    // If in suit choosing phase, auto-choose a random suit first
+    if (this.state.phase === GamePhase.ChoosingWildSuit) {
+      const suits = Object.values(Suit);
+      this.state.forcedSuit = suits[Math.floor(Math.random() * suits.length)];
+      this.state.phase = GamePhase.Playing;
+      this.advanceTurn();
+      return { success: true, playerId: currentPlayer.id, drawnCount: 0, nextPlayerIndex: this.state.currentPlayerIndex };
+    }
+
+    // Draw pending amount or 1 card as penalty
+    const amount = this.state.pendingDrawAmount > 0 ? this.state.pendingDrawAmount : 1;
+    const drawn = this.drawCards(currentPlayer, amount);
+    this.state.pendingDrawAmount = 0;
+
+    this.state.lastAction = {
+      type: ActionType.AutoDraw,
+      playerId: currentPlayer.id,
+      timestamp: Date.now(),
+    };
+
+    this.advanceTurn();
+    return {
+      success: true,
+      playerId: currentPlayer.id,
+      drawnCount: drawn.length,
+      nextPlayerIndex: this.state.currentPlayerIndex,
+    };
   }
 
 }

@@ -1,14 +1,30 @@
 import React from 'react';
-import type { PublicPlayer } from 'shared';
+import type { PublicPlayer, GamePhase } from 'shared';
 import { useGameStore } from '../lib/store';
+import Avatar from './Avatar';
+import TurnTimer from './TurnTimer';
 
 interface OpponentProps {
   player: PublicPlayer;
   position: { x: number; y: number; rotation: number };
   isCurrentTurn: boolean;
+  turnStartedAt: number;
+  turnTimeoutMs: number;
+  gamePhase: GamePhase;
+  pendingDrawAmount: number;
+  currentPlayerId: string | undefined;
 }
 
-export default function OpponentHand({ player, position, isCurrentTurn }: OpponentProps) {
+export default function OpponentHand({
+  player,
+  position,
+  isCurrentTurn,
+  turnStartedAt,
+  turnTimeoutMs,
+  gamePhase,
+  pendingDrawAmount,
+  currentPlayerId,
+}: OpponentProps) {
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
 
@@ -27,6 +43,26 @@ export default function OpponentHand({ player, position, isCurrentTurn }: Oppone
         zIndex: 10,
       }}
     >
+      {/* Avatar + Timer row */}
+      <div className="flex items-center gap-2 mb-1">
+        <Avatar
+          name={player.name}
+          avatarId={player.avatarId}
+          avatarColor={player.avatarColor}
+          size="sm"
+          isCurrentTurn={isCurrentTurn}
+          isDisconnected={!player.isConnected}
+        />
+        {/* Show timer next to avatar when it's their turn */}
+        {isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0 && (
+          <TurnTimer
+            turnStartedAt={turnStartedAt}
+            turnTimeoutMs={turnTimeoutMs}
+            size={28}
+          />
+        )}
+      </div>
+
       {/* Card fan */}
       <div className="relative" style={{ width: 100, height: 70 }}>
         {Array.from({ length: cardCount }).map((_, i) => {
@@ -77,6 +113,15 @@ export default function OpponentHand({ player, position, isCurrentTurn }: Oppone
         <span className="ml-1.5 opacity-70">({cardCount})</span>
         {!player.isConnected && <span className="ml-1">📡</span>}
       </div>
+
+      {/* Pending draw indicator for target player */}
+      {pendingDrawAmount > 0 && currentPlayerId === player.id && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce-in z-20">
+          <div className="px-2 py-0.5 bg-red-600 rounded-full text-white text-xs font-bold shadow-lg">
+            +{pendingDrawAmount}
+          </div>
+        </div>
+      )}
 
       {/* Effect indicator */}
       {isTarget && activeEffect && (

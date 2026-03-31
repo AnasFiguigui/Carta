@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useGameStore } from '../lib/store';
 import { getSocket } from '../lib/socket';
 import ChatPanel from './ChatPanel';
+import Avatar from './Avatar';
 
 export default function Lobby() {
   const store = useGameStore();
-  const { roomId, hostId, players, playerId } = store;
+  const { roomId, hostId, players, playerId, spectators } = store;
   const isHost = playerId === hostId;
 
   const canStart = players.length >= 2 && players.every((p) => p.isReady || p.id === hostId);
@@ -102,12 +103,12 @@ export default function Lobby() {
                   className="flex items-center justify-between px-4 py-3 rounded-lg bg-white/5 border border-white/5"
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-                        ${player.id === hostId ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}`}
-                    >
-                      {player.name[0].toUpperCase()}
-                    </div>
+                    <Avatar
+                      name={player.name}
+                      avatarId={player.avatarId}
+                      avatarColor={player.avatarColor}
+                      size="sm"
+                    />
                     <div>
                       <span className="text-white text-sm font-medium">{player.name}</span>
                       {player.id === hostId && (
@@ -146,6 +147,21 @@ export default function Lobby() {
               ))}
             </div>
           </div>
+
+          {/* Spectators */}
+          {spectators.length > 0 && (
+            <div className="mb-4">
+              <span className="text-xs text-white/40 mb-1 block">👁 Spectators ({spectators.length})</span>
+              <div className="flex flex-wrap gap-2">
+                {spectators.map((s) => (
+                  <div key={s.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/5">
+                    <Avatar name={s.name} avatarId={s.avatarId} avatarColor={s.avatarColor} size="sm" />
+                    <span className="text-xs text-white/50">{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3">

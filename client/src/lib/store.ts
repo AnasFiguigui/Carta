@@ -5,6 +5,8 @@ import type {
   Card,
   Suit,
   CardEffect,
+  Spectator,
+  AvatarId,
 } from 'shared';
 
 export type AppView = 'home' | 'lobby' | 'game';
@@ -25,15 +27,22 @@ interface GameStore {
   // Player identity
   playerId: string | null;
   playerName: string;
+  isSpectator: boolean;
+  avatarId: AvatarId;
+  avatarColor: string;
   setPlayerId: (id: string) => void;
   setPlayerName: (name: string) => void;
+  setIsSpectator: (v: boolean) => void;
+  setAvatarId: (id: AvatarId) => void;
+  setAvatarColor: (c: string) => void;
 
   // Room state
   roomId: string | null;
   hostId: string | null;
   players: PublicPlayer[];
+  spectators: Spectator[];
   maxPlayers: number;
-  setRoomData: (roomId: string, hostId: string, players: PublicPlayer[], maxPlayers: number) => void;
+  setRoomData: (roomId: string, hostId: string, players: PublicPlayer[], maxPlayers: number, spectators?: Spectator[]) => void;
 
   // Game state
   gameState: ClientGameState | null;
@@ -47,6 +56,12 @@ interface GameStore {
   chosenSuit: Suit | null;
   setChosenSuit: (s: Suit | null) => void;
 
+  // Timer
+  timerExpiredPlayerId: string | null;
+  setTimerExpiredPlayerId: (id: string | null) => void;
+  autoDrawPlayerId: string | null;
+  setAutoDrawPlayerId: (id: string | null) => void;
+
   // Chat
   chatMessages: ChatMessage[];
   addChatMessage: (msg: ChatMessage) => void;
@@ -55,9 +70,18 @@ interface GameStore {
   isConnected: boolean;
   setConnected: (c: boolean) => void;
 
+  // Sound
+  soundEnabled: boolean;
+  setSoundEnabled: (v: boolean) => void;
+
   // Reset
   reset: () => void;
 }
+
+const AVATAR_COLORS = [
+  '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
+  '#EC4899', '#F97316', '#14B8A6', '#6366F1', '#D946EF',
+];
 
 export const useGameStore = create<GameStore>((set) => ({
   view: 'home',
@@ -65,14 +89,22 @@ export const useGameStore = create<GameStore>((set) => ({
 
   playerId: null,
   playerName: '',
+  isSpectator: false,
+  avatarId: 'default',
+  avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
   setPlayerId: (id) => set({ playerId: id }),
   setPlayerName: (name) => set({ playerName: name }),
+  setIsSpectator: (v) => set({ isSpectator: v }),
+  setAvatarId: (id) => set({ avatarId: id }),
+  setAvatarColor: (c) => set({ avatarColor: c }),
 
   roomId: null,
   hostId: null,
   players: [],
+  spectators: [],
   maxPlayers: 6,
-  setRoomData: (roomId, hostId, players, maxPlayers) => set({ roomId, hostId, players, maxPlayers }),
+  setRoomData: (roomId, hostId, players, maxPlayers, spectators) =>
+    set({ roomId, hostId, players, maxPlayers, spectators: spectators || [] }),
 
   gameState: null,
   setGameState: (state) => set({ gameState: state }),
@@ -84,6 +116,11 @@ export const useGameStore = create<GameStore>((set) => ({
   chosenSuit: null,
   setChosenSuit: (s) => set({ chosenSuit: s }),
 
+  timerExpiredPlayerId: null,
+  setTimerExpiredPlayerId: (id) => set({ timerExpiredPlayerId: id }),
+  autoDrawPlayerId: null,
+  setAutoDrawPlayerId: (id) => set({ autoDrawPlayerId: id }),
+
   chatMessages: [],
   addChatMessage: (msg) => set((state) => ({
     chatMessages: [...state.chatMessages.slice(-100), msg],
@@ -92,16 +129,23 @@ export const useGameStore = create<GameStore>((set) => ({
   isConnected: false,
   setConnected: (c) => set({ isConnected: c }),
 
+  soundEnabled: true,
+  setSoundEnabled: (v) => set({ soundEnabled: v }),
+
   reset: () => set({
     view: 'home',
     playerId: null,
+    isSpectator: false,
     roomId: null,
     hostId: null,
     players: [],
+    spectators: [],
     gameState: null,
     lastPlayedCard: null,
     activeEffect: null,
     chosenSuit: null,
+    timerExpiredPlayerId: null,
+    autoDrawPlayerId: null,
     chatMessages: [],
   }),
 }));

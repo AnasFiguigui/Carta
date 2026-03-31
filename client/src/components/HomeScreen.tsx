@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { getSocket, connectSocket } from '../lib/socket';
+import AvatarPicker from './AvatarPicker';
+import type { AvatarId } from 'shared';
 
 export default function HomeScreen() {
   const [playerName, setPlayerName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
+  const [avatarId, setAvatarId] = useState<AvatarId>('default');
+  const [avatarColor, setAvatarColor] = useState('#3498db');
 
   // Auto-fill room code from URL query param (?room=XXXXX)
   useEffect(() => {
@@ -34,10 +38,12 @@ export default function HomeScreen() {
     connectSocket();
     const socket = getSocket();
 
-    socket.emit('create-room', { playerName: name }, (res) => {
+    socket.emit('create-room', { playerName: name, avatarId, avatarColor }, (res) => {
       if (res.roomId && res.playerId) {
         store.setPlayerName(name);
         store.setPlayerId(res.playerId);
+        store.setAvatarId(avatarId);
+        store.setAvatarColor(avatarColor);
         store.setView('lobby');
       } else {
         setError('Failed to create room');
@@ -61,10 +67,12 @@ export default function HomeScreen() {
     connectSocket();
     const socket = getSocket();
 
-    socket.emit('join-room', { roomId: code, playerName: name }, (res) => {
+    socket.emit('join-room', { roomId: code, playerName: name, avatarId, avatarColor }, (res) => {
       if (res.success && res.playerId) {
         store.setPlayerName(name);
         store.setPlayerId(res.playerId);
+        store.setAvatarId(avatarId);
+        store.setAvatarColor(avatarColor);
         store.setView('lobby');
       } else {
         setError(res.error || 'Failed to join room');
@@ -102,6 +110,15 @@ export default function HomeScreen() {
                   maxLength={20}
                 />
               </div>
+
+              {/* Avatar Picker */}
+              <AvatarPicker
+                name={playerName || '?'}
+                selectedAvatarId={avatarId}
+                selectedColor={avatarColor}
+                onSelectAvatar={setAvatarId}
+                onSelectColor={setAvatarColor}
+              />
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button

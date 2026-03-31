@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { connectSocket } from './socket';
 import { useGameStore } from './store';
+import { playSound } from './sounds';
 
 /** Always read latest store state inside socket handlers (avoids stale closures) */
 const getState = () => useGameStore.getState();
@@ -27,11 +28,15 @@ export function useSocketEvents() {
     });
 
     socket.on('room-updated', (data) => {
-      getState().setRoomData(data.id, data.hostId, data.players, data.maxPlayers);
+      getState().setRoomData(data.id, data.hostId, data.players, data.maxPlayers, (data as any).spectators);
 
       // If phase changed from lobby to playing, switch view
       if (data.phase !== 'lobby' && getState().view === 'lobby') {
         getState().setView('game');
+      }
+      // If game is over and goes back to lobby
+      if (data.phase === 'lobby' && getState().view === 'game') {
+        getState().setView('lobby');
       }
     });
 
@@ -89,6 +94,46 @@ export function useSocketEvents() {
         timestamp: Date.now(),
         isSystem: true,
       });
+    });
+
+    socket.on('spectator-joined', (spectator) => {
+      getState().addChatMessage({
+        playerId: 'system',
+        playerName: 'System',
+        message: `👁 ${spectator.name} is now spectating`,
+        timestamp: Date.now(),
+        isSystem: true,
+      });
+    });
+
+    socket.on('spectator-left', (data) => {
+      getState().addChatMessage({
+        playerId: 'system',
+        playerName: 'System',
+        message: `A spectator left`,
+        timestamp: Date.now(),
+        isSystem: true,
+      });
+    });
+
+    socket.on('timer-expired', (data) => {
+      getState().setTimerExpiredPlayerId(data.playerId);
+      setTimeout(() => getState().setTimerExpiredPlayerId(null), 3000);
+    });
+
+    socket.on('auto-draw', (data) => {
+      getState().setAutoDrawPlayerId(data.playerId);
+      setTimeout(() => getState().setAutoDrawPlayerId(null), 1000);
+    });
+
+    socket.on('turn-changed', () => {
+      // Game state update will follow via game-state event with new turnStartedAt
+    });
+
+    socket.on('sound', (data) => {
+      if (getState().soundEnabled) {
+        playSound(data.sound);
+      }
     });
 
     socket.on('chat-message', (data) => {

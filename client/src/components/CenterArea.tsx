@@ -10,6 +10,8 @@ interface CenterAreaProps {
   discardPileTop3: CardType[];
   isMyTurn: boolean;
   pendingDrawAmount: number;
+  currentPlayerId: string | undefined;
+  myPlayerId: string;
 }
 
 export default function CenterArea({
@@ -18,6 +20,8 @@ export default function CenterArea({
   discardPileTop3,
   isMyTurn,
   pendingDrawAmount,
+  currentPlayerId,
+  myPlayerId,
 }: CenterAreaProps) {
   const lastPlayedCard = useGameStore((s) => s.lastPlayedCard);
   const gameState = useGameStore((s) => s.gameState);
@@ -75,7 +79,9 @@ export default function CenterArea({
           {/* Pending draw amount */}
           {pendingDrawAmount > 0 && (
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 animate-bounce-in">
-              <div className="px-2 py-1 bg-red-600 rounded-full text-white text-sm font-bold shadow-lg">
+              <div className={`px-2 py-1 rounded-full text-white text-sm font-bold shadow-lg ${
+                currentPlayerId === myPlayerId ? 'bg-red-600' : 'bg-gray-500'
+              }`}>
                 +{pendingDrawAmount}
               </div>
             </div>

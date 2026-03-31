@@ -8,6 +8,10 @@ import OpponentHand from './OpponentHand';
 import CenterArea from './CenterArea';
 import SuitSelector from './SuitSelector';
 import ChatPanel from './ChatPanel';
+import SpectatorPanel from './SpectatorPanel';
+import TurnTimer from './TurnTimer';
+import Avatar from './Avatar';
+import { playSound } from '../lib/sounds';
 
 /** Calculate opponent positions around the table based on player count */
 function getOpponentPositions(
@@ -19,8 +23,8 @@ function getOpponentPositions(
   const layouts: Record<number, { x: number; y: number; rotation: number }[]> = {
     1: [{ x: 50, y: 8, rotation: 0 }],
     2: [
-      { x: 15, y: 30, rotation: 0 },
-      { x: 85, y: 30, rotation: 0 },
+      { x: 18, y: 30, rotation: 0 },
+      { x: 82, y: 30, rotation: 0 },
     ],
     3: [
       { x: 15, y: 40, rotation: 0 },
@@ -48,12 +52,18 @@ function getOpponentPositions(
 export default function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const playerId = useGameStore((s) => s.playerId);
+  const timerExpiredPlayerId = useGameStore((s) => s.timerExpiredPlayerId);
+  const autoDrawPlayerId = useGameStore((s) => s.autoDrawPlayerId);
+  const soundEnabled = useGameStore((s) => s.soundEnabled);
+  const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
   const [showRules, setShowRules] = useState(false);
 
   const myPlayerIndex = gameState?.players.findIndex((p) => p.id === playerId) ?? -1;
   const isMyTurn = gameState ? gameState.currentPlayerIndex === myPlayerIndex : false;
   const isChoosingWild = gameState?.phase === 'choosing_wild_suit' && isMyTurn;
   const isGameOver = gameState?.phase === 'game_over';
+
+  const myPlayer = gameState?.players[myPlayerIndex];
 
   const opponents = useMemo(() => {
     if (!gameState) return [];
@@ -97,43 +107,96 @@ export default function GameBoard() {
     getSocket().emit('pass-turn');
   };
 
+  const currentTurnPlayer = gameState.players[gameState.currentPlayerIndex];
+
   return (
     <div className="w-full h-screen felt-bg perspective-container relative overflow-hidden">
-      {/* Game info bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-2 bg-black/30">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowRules(true)}
-            className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
-                       rounded border border-white/20 transition-colors"
-            title="Game Rules"
-          >
-            📖 Rules
-          </button>
-          <div className="text-sm text-white/80">
-            Room: <span className="font-bold text-yellow-300">{gameState.roomId}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {gameState.direction === 1 ? (
-            <span className="text-white/60 text-xs">↻ Clockwise</span>
-          ) : (
-            <span className="text-white/60 text-xs">↺ Counter-clockwise</span>
-          )}
-          <div className={`text-sm font-bold ${isMyTurn ? 'text-yellow-300' : 'text-white/60'}`}>
-            {isMyTurn ? '🎯 Your Turn!' : `${gameState.players[gameState.currentPlayerIndex]?.name}'s turn`}
-          </div>
+      {/* Left side: Rules + Spectators */}
+      <div className="absolute top-3 left-3 z-30 flex flex-col gap-2">
+        <button
+          onClick={() => setShowRules(true)}
+          className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
+                     rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+          title="Game Rules"
+        >
+          📖
+        </button>
+        <button
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
+                     rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+          title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
+        >
+          {soundEnabled ? '🔊' : '🔇'}
+        </button>
+        <SpectatorPanel
+          spectators={gameState.spectators || []}
+          canJoin={gameState.players.length < 6 && (gameState.phase === 'lobby' || gameState.phase === 'game_over')}
+        />
+      </div>
+
+      {/* Right side: Room code + Leave */}
+      <div className="absolute top-3 right-3 z-30 flex flex-col items-end gap-2">
+        <div className="px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60">
+          <span className="font-bold text-yellow-300">{gameState.roomId}</span>
         </div>
         <button
           onClick={() => {
             getSocket().emit('leave-room');
             useGameStore.getState().reset();
           }}
-          className="text-xs text-red-400 hover:text-red-300 transition-colors"
+          className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 bg-white/5 hover:bg-white/10
+                     rounded-lg border border-red-500/20 transition-colors"
         >
-          Leave Game
+          Leave
         </button>
       </div>
+
+      {/* Turn indicator (top center) */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+        {gameState.direction === 1 ? (
+          <span className="text-white/40 text-xs">↻</span>
+        ) : (
+          <span className="text-white/40 text-xs">↺</span>
+        )}
+        <div className={`text-sm font-bold px-4 py-1.5 rounded-full backdrop-blur-sm ${
+          isMyTurn
+            ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-300'
+            : 'bg-black/30 border border-white/10 text-white/60'
+        }`}>
+          {isMyTurn ? '🎯 Your Turn!' : `${currentTurnPlayer?.name}'s turn`}
+        </div>
+        {/* Timer for current player */}
+        {gameState.phase === 'playing' && gameState.turnStartedAt > 0 && (
+          <TurnTimer
+            turnStartedAt={gameState.turnStartedAt}
+            turnTimeoutMs={gameState.turnTimeoutMs}
+            isMyTurn={isMyTurn}
+            size={36}
+            onWarning={() => {
+              if (isMyTurn) playSound('timer-tick');
+            }}
+          />
+        )}
+      </div>
+
+      {/* Timer expired overlay */}
+      {timerExpiredPlayerId && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 animate-bounce-in">
+          <div className="px-4 py-2 bg-red-600/90 rounded-xl text-white font-bold text-sm shadow-lg border border-red-400/50">
+            ⏰ Time's Up! {gameState.players.find(p => p.id === timerExpiredPlayerId)?.name}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-draw overlay */}
+      {autoDrawPlayerId && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 animate-bounce-in">
+          <div className="px-4 py-2 bg-orange-600/90 rounded-xl text-white font-bold text-sm shadow-lg border border-orange-400/50">
+            +1 Auto-draw penalty
+          </div>
+        </div>
+      )}
 
       {/* Opponent hands */}
       {opponents.map((opponent, i) => (
@@ -144,6 +207,11 @@ export default function GameBoard() {
           isCurrentTurn={
             gameState.players[gameState.currentPlayerIndex]?.id === opponent.id
           }
+          turnStartedAt={gameState.turnStartedAt}
+          turnTimeoutMs={gameState.turnTimeoutMs}
+          gamePhase={gameState.phase}
+          pendingDrawAmount={gameState.pendingDrawAmount}
+          currentPlayerId={currentTurnPlayer?.id}
         />
       ))}
 
@@ -155,11 +223,27 @@ export default function GameBoard() {
           discardPileTop3={gameState.discardPileTop3}
           isMyTurn={isMyTurn}
           pendingDrawAmount={gameState.pendingDrawAmount}
+          currentPlayerId={currentTurnPlayer?.id}
+          myPlayerId={playerId}
         />
       </div>
 
-      {/* My hand (bottom center) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+      {/* My avatar + hand (bottom center) */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+        {/* Avatar + name row */}
+        {myPlayer && (
+          <div className="flex items-center gap-2 mb-1">
+            <Avatar
+              name={myPlayer.name}
+              avatarId={myPlayer.avatarId}
+              avatarColor={myPlayer.avatarColor}
+              size="sm"
+              isCurrentTurn={isMyTurn}
+            />
+            <span className="text-white/70 text-xs font-medium">{myPlayer.name}</span>
+            <span className="text-white/40 text-xs">({gameState.myHand.length})</span>
+          </div>
+        )}
         <PlayerHand
           cards={gameState.myHand}
           playableCardIds={playableCardIds}
@@ -169,7 +253,7 @@ export default function GameBoard() {
 
       {/* Action buttons */}
       {isMyTurn && !isChoosingWild && (
-        <div className="absolute bottom-44 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+        <div className="absolute bottom-48 left-1/2 -translate-x-1/2 z-20 flex gap-3">
           {playableCardIds.size === 0 && gameState.pendingDrawAmount === 0 && (
             <button
               onClick={handlePassTurn}
@@ -196,16 +280,18 @@ export default function GameBoard() {
                 ? 'You Win!'
                 : `${gameState.players.find((p) => p.id === gameState.winnerId)?.name || 'Someone'} Wins!`}
             </p>
-            <button
-              onClick={() => {
-                getSocket().emit('leave-room');
-                useGameStore.getState().reset();
-              }}
-              className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                         transition-colors shadow-lg"
-            >
-              Back to Home
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  getSocket().emit('leave-room');
+                  useGameStore.getState().reset();
+                }}
+                className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                           transition-colors shadow-lg"
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -248,7 +334,7 @@ export default function GameBoard() {
 
               <div>
                 <h3 className="text-yellow-300 font-bold mb-1">▶️ How to Play</h3>
-                <p>On your turn, play a card that matches the top card by <strong>suit</strong> or <strong>value</strong>. If you can't play, draw a card from the deck.</p>
+                <p>Each player starts with <strong>4 cards</strong>. Play a card matching the top card by <strong>suit</strong> or <strong>value</strong>. If you can't play, draw a card. You have <strong>30 seconds</strong> per turn.</p>
               </div>
 
               <div>
@@ -259,6 +345,11 @@ export default function GameBoard() {
                   <p><span className="text-orange-400 font-bold">10s → Skip</span> — Skip the next player's turn</p>
                   <p><span className="text-purple-400 font-bold">7s → Wild</span> — Choose any suit for the next player to follow</p>
                 </div>
+              </div>
+
+              <div>
+                <h3 className="text-yellow-300 font-bold mb-1">⏰ Timer</h3>
+                <p>30 seconds per turn. If time runs out, you automatically draw a card as penalty.</p>
               </div>
 
               <div>
