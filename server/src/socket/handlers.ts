@@ -425,10 +425,16 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         return;
       }
 
-      cb({ success: true });
+      cb({ success: true, playerId: result.playerId });
 
       if (result.room) {
         io.to(result.room.id).emit('room-updated', roomManager.getRoomInfo(result.room));
+
+        // Send game state to the promoted player so they see updated view
+        const engine = roomManager.getEngine(result.room.id);
+        if (engine && result.playerId) {
+          socket.emit('game-state', engine.getClientState(result.playerId, result.room.spectators));
+        }
       }
     });
 

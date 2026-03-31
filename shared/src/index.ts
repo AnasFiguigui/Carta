@@ -196,7 +196,7 @@ export interface ClientToServerEvents {
   'restart-game': () => void;
   'request-state': () => void;
   'chat-message': (data: { message: string }) => void;
-  'join-as-player': (cb: (res: { success: boolean; error?: string }) => void) => void;
+  'join-as-player': (cb: (res: { success: boolean; error?: string; playerId?: string }) => void) => void;
   'become-spectator': () => void;
 }
 

@@ -76,7 +76,7 @@ export class GameEngine {
     }
 
     this.state.phase = GamePhase.Playing;
-    this.state.currentPlayerIndex = 0;
+    this.state.currentPlayerIndex = Math.floor(Math.random() * this.state.players.length);
     this.state.direction = Direction.Clockwise;
     this.state.pendingDrawAmount = 0;
     this.state.forcedSuit = null;

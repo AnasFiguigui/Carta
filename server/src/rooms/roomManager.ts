@@ -337,6 +337,12 @@ export class RoomManager {
     // Reset ready states for the new game
     room.players.forEach(p => { p.isReady = false; });
 
+    // Shuffle player order
+    for (let i = room.players.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [room.players[i], room.players[j]] = [room.players[j], room.players[i]];
+    }
+
     const engine = new GameEngine(room.id, room.players);
     engine.startGame();
 
@@ -360,6 +366,12 @@ export class RoomManager {
 
     if (room.players.length < 2) {
       return { success: false, error: 'Need at least 2 players' };
+    }
+
+    // Shuffle player order for new game
+    for (let i = room.players.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [room.players[i], room.players[j]] = [room.players[j], room.players[i]];
     }
 
     // Reset player state

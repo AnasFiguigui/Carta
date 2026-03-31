@@ -131,7 +131,12 @@ export default function GameBoard() {
   };
 
   const handleJoinAsPlayer = () => {
-    getSocket().emit('join-as-player', () => {});
+    getSocket().emit('join-as-player', (res) => {
+      if (res.success && res.playerId) {
+        useGameStore.getState().setPlayerId(res.playerId);
+        useGameStore.getState().setIsSpectator(false);
+      }
+    });
   };
 
   const currentTurnPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -342,6 +347,7 @@ export default function GameBoard() {
             {/* Host controls */}
             {isHost && !isSpectator && (
               <div className="flex flex-col gap-2 mt-4">
+                <p className="text-white/50 text-xs mb-1">{gameState.players.length} player{gameState.players.length !== 1 ? 's' : ''} in room</p>
                 <button
                   onClick={handleRestartGame}
                   className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
