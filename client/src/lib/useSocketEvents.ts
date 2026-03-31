@@ -52,6 +52,14 @@ export function useSocketEvents() {
       setTimeout(() => getState().setLastPlayedCard(null), 600);
     });
 
+    socket.on('card-drawn', (data) => {
+      // Trigger draw animation only for the local player
+      if (data.playerId === getState().playerId && data.drawnCards && data.drawnCards.length > 0) {
+        getState().setCardAnimation('draw', data.drawnCards[0]);
+        setTimeout(() => getState().setCardAnimation(null), 500);
+      }
+    });
+
     socket.on('effect-applied', (data) => {
       getState().setActiveEffect({
         effect: data.effect,

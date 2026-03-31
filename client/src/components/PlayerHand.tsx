@@ -2,6 +2,7 @@ import React from 'react';
 import type { Card as CardType } from 'shared';
 import Card from './Card';
 import { getSocket } from '../lib/socket';
+import { useGameStore } from '../lib/store';
 
 interface PlayerHandProps {
   cards: CardType[];
@@ -11,10 +12,12 @@ interface PlayerHandProps {
 
 export default function PlayerHand({ cards, playableCardIds, isMyTurn }: PlayerHandProps) {
 
-  const handlePlayCard = (cardId: string) => {
+  const handlePlayCard = (card: CardType) => {
     if (!isMyTurn) return;
-    if (!playableCardIds.has(cardId)) return;
-    getSocket().emit('play-card', { cardId });
+    if (!playableCardIds.has(card.id)) return;
+    useGameStore.getState().setCardAnimation('play', card);
+    setTimeout(() => useGameStore.getState().setCardAnimation(null), 500);
+    getSocket().emit('play-card', { cardId: card.id });
   };
 
   // Fan out cards with overlap
@@ -45,7 +48,7 @@ export default function PlayerHand({ cards, playableCardIds, isMyTurn }: PlayerH
               <Card
                 card={card}
                 isPlayable={isPlayable}
-                onClick={() => handlePlayCard(card.id)}
+                onClick={() => handlePlayCard(card)}
                 size="md"
                 animDelay={i * 50}
               />

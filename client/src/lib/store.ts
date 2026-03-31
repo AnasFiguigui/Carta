@@ -62,6 +62,11 @@ interface GameStore {
   autoDrawPlayerId: string | null;
   setAutoDrawPlayerId: (id: string | null) => void;
 
+  // Card animations (local player only)
+  cardAnimationType: 'draw' | 'play' | null;
+  animatingCard: Card | null;
+  setCardAnimation: (type: 'draw' | 'play' | null, card?: Card | null) => void;
+
   // Chat
   chatMessages: ChatMessage[];
   addChatMessage: (msg: ChatMessage) => void;
@@ -121,6 +126,10 @@ export const useGameStore = create<GameStore>((set) => ({
   autoDrawPlayerId: null,
   setAutoDrawPlayerId: (id) => set({ autoDrawPlayerId: id }),
 
+  cardAnimationType: null,
+  animatingCard: null,
+  setCardAnimation: (type, card) => set({ cardAnimationType: type, animatingCard: card || null }),
+
   chatMessages: [],
   addChatMessage: (msg) => set((state) => ({
     chatMessages: [...state.chatMessages.slice(-100), msg],
@@ -146,6 +155,8 @@ export const useGameStore = create<GameStore>((set) => ({
     chosenSuit: null,
     timerExpiredPlayerId: null,
     autoDrawPlayerId: null,
+    cardAnimationType: null,
+    animatingCard: null,
     chatMessages: [],
   }),
 }));

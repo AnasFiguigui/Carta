@@ -446,4 +446,51 @@ export class RoomManager {
   getSpectatorMapping(socketId: string): { roomId: string; spectatorId: string } | undefined {
     return this.spectatorSocketMap.get(socketId);
   }
+
+  /** Kick a disconnected player from active game */
+  kickDisconnectedPlayer(roomId: string, playerId: string): {
+    success: boolean;
+    gameOver: boolean;
+    room?: Room;
+  } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { success: false, gameOver: false };
+
+    const engine = this.engines.get(roomId);
+    if (!engine) return { success: false, gameOver: false };
+
+    const result = engine.kickPlayer(playerId);
+
+    // Remove from players list
+    room.players = room.players.filter(p => p.id !== playerId);
+
+    // Clean up socket mapping for this player
+    for (const [sid, mapping] of this.socketMap.entries()) {
+      if (mapping.roomId === roomId && mapping.playerId === playerId) {
+        this.socketMap.delete(sid);
+        break;
+      }
+    }
+
+    // Reassign host if needed
+    if (room.hostId === playerId && room.players.length > 0) {
+      room.hostId = room.players[0].id;
+    }
+
+    room.gameState = engine.getState();
+    return { success: true, gameOver: result.gameOver, room };
+  }
+
+  /** Remove a room entirely */
+  removeRoom(roomId: string): void {
+    this.rooms.delete(roomId);
+    this.engines.delete(roomId);
+    // Clean up socket mappings
+    for (const [sid, mapping] of this.socketMap.entries()) {
+      if (mapping.roomId === roomId) this.socketMap.delete(sid);
+    }
+    for (const [sid, mapping] of this.spectatorSocketMap.entries()) {
+      if (mapping.roomId === roomId) this.spectatorSocketMap.delete(sid);
+    }
+  }
 }

@@ -11,6 +11,7 @@ const MAX_CHAT_LENGTH = 200;
 const TURN_TIMEOUT_MS = 30_000;
 const COOLDOWN_MS = 3_000;
 const TURN_COOLDOWN_MS = 2_000;
+const DISCONNECT_KICK_MS = 2 * 60 * 1000; // 2 minutes
 
 function sanitizeName(name: string): string {
   return name.trim().slice(0, MAX_NAME_LENGTH).replace(/[<>&"'/]/g, '');
@@ -23,6 +24,8 @@ function sanitizeChat(msg: string): string {
 export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): void {
   /** Timer handles per room */
   const turnTimers: Map<string, NodeJS.Timeout> = new Map();
+  /** Disconnect kick timers: playerId → timeout */
+  const disconnectKickTimers: Map<string, NodeJS.Timeout> = new Map();
 
   function clearTurnTimer(roomId: string) {
     const timer = turnTimers.get(roomId);
@@ -91,6 +94,109 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     io.to(roomId).emit('sound', { sound });
   }
 
+  function startDisconnectKickTimer(roomId: string, playerId: string) {
+    clearDisconnectKickTimer(playerId);
+    const timer = setTimeout(() => {
+      disconnectKickTimers.delete(playerId);
+      handleDisconnectKick(roomId, playerId);
+    }, DISCONNECT_KICK_MS);
+    disconnectKickTimers.set(playerId, timer);
+  }
+
+  function clearDisconnectKickTimer(playerId: string) {
+    const timer = disconnectKickTimers.get(playerId);
+    if (timer) {
+      clearTimeout(timer);
+      disconnectKickTimers.delete(playerId);
+    }
+  }
+
+  function handleDisconnectKick(roomId: string, playerId: string) {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player || player.isConnected) return; // Reconnected, don't kick
+
+    const result = roomManager.kickDisconnectedPlayer(roomId, playerId);
+    if (!result.success || !result.room) return;
+
+    io.to(roomId).emit('player-left', { playerId, newHostId: result.room.hostId });
+    io.to(roomId).emit('room-updated', roomManager.getRoomInfo(result.room));
+
+    const engine = roomManager.getEngine(roomId);
+    if (engine) {
+      if (result.gameOver) {
+        const state = engine.getState();
+        const winner = state.players.find(p => p.id === state.winnerId);
+        io.to(roomId).emit('game-over', {
+          winnerId: state.winnerId || '',
+          winnerName: winner?.name || 'Unknown',
+        });
+        emitSound(roomId, 'game-win');
+        clearTurnTimer(roomId);
+      } else {
+        broadcastGameState(io, roomId, engine, result.room.spectators);
+        const state = engine.getState();
+        if (state.phase === GamePhase.Playing) {
+          io.to(roomId).emit('turn-changed', {
+            currentPlayerIndex: state.currentPlayerIndex,
+            turnStartedAt: state.turnStartedAt,
+          });
+          startTurnTimer(roomId);
+        }
+      }
+    }
+  }
+
+  /** Check if game should end due to lack of connected players */
+  function checkConnectedPlayers(roomId: string) {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+    const engine = roomManager.getEngine(roomId);
+    if (!engine) return;
+    const state = engine.getState();
+    if (state.phase === GamePhase.GameOver || state.phase === GamePhase.Lobby) return;
+
+    const connectedActive = engine.getConnectedActiveCount();
+
+    if (connectedActive === 0) {
+      // No one online — remove room
+      clearTurnTimer(roomId);
+      roomManager.removeRoom(roomId);
+      return;
+    }
+
+    if (connectedActive <= 1) {
+      // Only 1 connected player left — end game, they win
+      const lastConnected = state.players.find(
+        p => p.isConnected && !state.finishedPlayerIds.includes(p.id)
+      );
+      if (lastConnected) {
+        // Kick all disconnected active players to trigger game over
+        const disconnectedActive = state.players.filter(
+          p => !p.isConnected && !state.finishedPlayerIds.includes(p.id)
+        );
+        for (const p of disconnectedActive) {
+          engine.kickPlayer(p.id);
+        }
+        room.gameState = engine.getState();
+
+        const finalState = engine.getState();
+        if (finalState.phase === GamePhase.GameOver) {
+          const winner = finalState.players.find(p => p.id === finalState.winnerId);
+          io.to(roomId).emit('game-over', {
+            winnerId: finalState.winnerId || '',
+            winnerName: winner?.name || 'Unknown',
+          });
+          emitSound(roomId, 'game-win');
+          clearTurnTimer(roomId);
+          broadcastGameState(io, roomId, engine, room.spectators);
+        }
+      }
+    }
+  }
+
   io.on('connection', (socket: TypedSocket) => {
     console.log(`Connected: ${socket.id}`);
 
@@ -140,9 +246,10 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       // Notify all in room
       io.to(result.room.id).emit('room-updated', roomManager.getRoomInfo(result.room));
 
-      // If reconnecting to active game, send game state
+      // If reconnecting to active game, send game state and clear kick timer
       const engine = roomManager.getEngine(result.room.id);
       if (engine && result.playerId) {
+        clearDisconnectKickTimer(result.playerId);
         socket.emit('game-state', engine.getClientState(result.playerId, result.room.spectators));
       }
     });
@@ -298,7 +405,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       const room = roomManager.getRoom(mapping.roomId);
       broadcastGameState(io, mapping.roomId, engine, room?.spectators || []);
 
-      // Restart timer for current player (they may need to play drawn card)
+      // Turn always passes after drawing — start timer for next player
       const state = engine.getState();
       if (state.phase === GamePhase.Playing) {
         io.to(mapping.roomId).emit('turn-changed', {
@@ -523,6 +630,9 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
   });
 
   function handleLeave(socket: TypedSocket) {
+    // Before leaveRoom, capture mapping for kick timer
+    const mapping = roomManager.getMapping(socket.id);
+
     const result = roomManager.leaveRoom(socket.id);
     if (!result) return;
 
@@ -543,6 +653,18 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       const engine = roomManager.getEngine(result.roomId);
       if (engine) {
         broadcastGameState(io, result.roomId, engine, result.room.spectators);
+
+        // If player disconnected during active game (marked as disconnected, not removed),
+        // start a 2-minute kick timer and check if game should end
+        const state = engine.getState();
+        if (state.phase !== GamePhase.Lobby && state.phase !== GamePhase.GameOver) {
+          const player = state.players.find(p => p.id === result.playerId);
+          if (player && !player.isConnected) {
+            startDisconnectKickTimer(result.roomId, result.playerId);
+          }
+          // Check if only 1 connected player remains
+          checkConnectedPlayers(result.roomId);
+        }
       }
 
       // If no players left and game had a timer, clean up

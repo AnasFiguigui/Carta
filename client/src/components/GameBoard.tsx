@@ -9,6 +9,7 @@ import CenterArea from './CenterArea';
 import SuitSelector from './SuitSelector';
 import ChatPanel from './ChatPanel';
 import Avatar from './Avatar';
+import Card from './Card';
 import { playSound } from '../lib/sounds';
 
 /** Detect mobile via viewport width */
@@ -65,6 +66,8 @@ export default function GameBoard() {
   const autoDrawPlayerId = useGameStore((s) => s.autoDrawPlayerId);
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
+  const cardAnimationType = useGameStore((s) => s.cardAnimationType);
+  const animatingCard = useGameStore((s) => s.animatingCard);
   const [showRules, setShowRules] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showSpectators, setShowSpectators] = useState(false);
@@ -269,6 +272,33 @@ export default function GameBoard() {
         />
       </div>
 
+      {/* Card animation overlay (local player only) */}
+      {cardAnimationType && animatingCard && (
+        <div
+          className="fixed inset-0 z-40 pointer-events-none"
+          key={`${cardAnimationType}-${animatingCard.id}`}
+        >
+          <div
+            className={`absolute ${
+              cardAnimationType === 'draw' ? 'card-anim-draw' : 'card-anim-play'
+            }`}
+            style={{
+              left: '50%',
+              top: cardAnimationType === 'draw' ? '50%' : 'calc(100% - 180px)',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            {cardAnimationType === 'draw' ? (
+              <div className="w-[70px] h-[105px] rounded-lg overflow-hidden shadow-lg">
+                <img src="/cards/back.webp" alt="Card back" className="w-full h-full object-cover" draggable={false} />
+              </div>
+            ) : (
+              <Card card={animatingCard} size="sm" />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* My avatar + hand (bottom center) — only for players */}
       {myPlayer ? (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
@@ -279,23 +309,14 @@ export default function GameBoard() {
               <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
             )}
 
-            {/* Pass turn button — only after drawing, when player has playable cards but chooses not to play */}
-            {isMyTurn && !isChoosingWild && !myIsFinished && gameState.hasDrawnThisTurn && playableCardIds.size > 0 && (
-              <button
-                onClick={handlePassTurn}
-                className="px-3 py-1.5 bg-gray-700/80 hover:bg-gray-600 rounded-lg text-xs text-white
-                           border border-white/20 transition-colors shadow-lg whitespace-nowrap"
-              >
-                Pass
-              </button>
-            )}
-
             <Avatar
               name={myPlayer.name}
               avatarId={myPlayer.avatarId}
               avatarColor={myPlayer.avatarColor}
               size="lg"
               isCurrentTurn={isMyTurn && !myIsFinished}
+              isDisconnected={!myPlayer.isConnected}
+              showConnectionDot={true}
               turnStartedAt={isMyTurn && !myIsFinished && gameState.phase === 'playing' && gameState.turnStartedAt > 0 ? gameState.turnStartedAt : undefined}
               turnTimeoutMs={isMyTurn && !myIsFinished && gameState.phase === 'playing' ? gameState.turnTimeoutMs : undefined}
               onTimerWarning={() => playSound('timer-tick')}

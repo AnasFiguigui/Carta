@@ -16,16 +16,6 @@ export default function App() {
       {view === 'home' && <HomeScreen />}
       {view === 'lobby' && <Lobby />}
       {view === 'game' && <GameBoard />}
-
-      {/* Connection indicator */}
-      {view !== 'home' && (
-        <div className="fixed top-2 right-2 z-50">
-          <div
-            className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`}
-            title={isConnected ? 'Connected' : 'Disconnected'}
-          />
-        </div>
-      )}
     </div>
   );
 }

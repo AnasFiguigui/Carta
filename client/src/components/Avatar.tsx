@@ -8,6 +8,7 @@ interface AvatarProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   isCurrentTurn?: boolean;
   isDisconnected?: boolean;
+  showConnectionDot?: boolean;
   turnStartedAt?: number;
   turnTimeoutMs?: number;
   onTimerWarning?: () => void;
@@ -27,6 +28,7 @@ export default function Avatar({
   size = 'md',
   isCurrentTurn = false,
   isDisconnected = false,
+  showConnectionDot = false,
   turnStartedAt,
   turnTimeoutMs,
   onTimerWarning,
@@ -36,6 +38,8 @@ export default function Avatar({
   const [progress, setProgress] = useState(1);
   const warningFired = useRef(false);
   const rafRef = useRef<number>(0);
+
+  const dotSize = size === 'sm' ? 8 : size === 'md' ? 10 : 12;
 
   const showTimer = isCurrentTurn && !!turnStartedAt && turnStartedAt > 0 && !!turnTimeoutMs && turnTimeoutMs > 0;
 
@@ -143,7 +147,7 @@ export default function Avatar({
       <div
         className={`
           rounded-full flex items-center justify-center font-bold text-white
-          transition-all duration-300
+          transition-all duration-300 relative
           ${sizeInfo.class}
           ${isUrgent ? 'avatar-urgent' : ''}
           ${isDisconnected ? 'opacity-40 grayscale' : ''}
@@ -151,6 +155,20 @@ export default function Avatar({
         style={{ backgroundColor: avatarColor }}
       >
         <span>{letter}</span>
+        {/* Messenger-style connection status dot */}
+        {showConnectionDot && (
+          <div
+            className={`absolute rounded-full border-2 border-gray-900 ${
+              isDisconnected ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+            }`}
+            style={{
+              width: dotSize,
+              height: dotSize,
+              bottom: -1,
+              right: -1,
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -355,7 +355,12 @@ export class GameEngine {
       return { success: true, drawnCards: drawn, nextPlayerIndex: this.state.currentPlayerIndex, mustPlay: false };
     }
 
-    // Normal draw: draw 1 card
+    // Only one draw per turn
+    if (this.state.hasDrawnThisTurn) {
+      return { success: false, error: 'Already drawn this turn' };
+    }
+
+    // Normal draw: draw 1 card, then turn passes
     const drawn = this.drawCards(currentPlayer, 1);
     if (drawn.length === 0) {
       return { success: false, error: 'Deck is empty' };
@@ -369,14 +374,7 @@ export class GameEngine {
       timestamp: Date.now(),
     };
 
-    // Check if drawn card is playable
-    const drawnCard = drawn[0];
-    if (this.state.topCard && isValidPlay(drawnCard, this.state.topCard, this.state.forcedSuit, 0)) {
-      // Player can choose to play it (we let them decide on client)
-      return { success: true, drawnCards: drawn, nextPlayerIndex: this.state.currentPlayerIndex, mustPlay: false };
-    }
-
-    // Can't play drawn card, advance turn
+    // Turn passes after drawing
     this.advanceTurn();
     return { success: true, drawnCards: drawn, nextPlayerIndex: this.state.currentPlayerIndex, mustPlay: false };
   }
@@ -437,6 +435,50 @@ export class GameEngine {
     if (player) {
       player.isConnected = true;
     }
+  }
+
+  /** Kick a disconnected player — treat them as finished (loser if last) */
+  kickPlayer(playerId: string): { gameOver: boolean } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { gameOver: false };
+
+    // If already finished, nothing to do
+    if (this.state.finishedPlayerIds.includes(playerId)) return { gameOver: false };
+
+    // Mark as finished (kicked)
+    this.state.finishedPlayerIds.push(playerId);
+
+    // If it was their turn, advance
+    if (this.state.phase === GamePhase.Playing || this.state.phase === GamePhase.ChoosingWildSuit) {
+      const current = this.getCurrentPlayer();
+      if (current.id === playerId) {
+        if (this.state.phase === GamePhase.ChoosingWildSuit) {
+          const suits = Object.values(Suit);
+          this.state.forcedSuit = suits[Math.floor(Math.random() * suits.length)];
+          this.state.phase = GamePhase.Playing;
+        }
+        this.advanceTurn();
+      }
+    }
+
+    // Check if game should end
+    const activePlayers = this.state.players.filter(
+      p => !this.state.finishedPlayerIds.includes(p.id)
+    );
+    if (activePlayers.length <= 1) {
+      this.state.loserId = activePlayers.length === 1 ? activePlayers[0].id : null;
+      this.state.phase = GamePhase.GameOver;
+      return { gameOver: true };
+    }
+
+    return { gameOver: false };
+  }
+
+  /** Count connected active (non-finished) players */
+  getConnectedActiveCount(): number {
+    return this.state.players.filter(
+      p => p.isConnected && !this.state.finishedPlayerIds.includes(p.id)
+    ).length;
   }
 
   /** Auto-draw penalty when timer expires */
