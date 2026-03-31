@@ -94,6 +94,30 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     io.to(roomId).emit('sound', { sound });
   }
 
+  /** After game over, remove all disconnected players from the room */
+  function cleanupDisconnectedPlayers(roomId: string) {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+
+    const disconnected = room.players.filter(p => !p.isConnected);
+    for (const dp of disconnected) {
+      // Clear any pending kick timers
+      clearDisconnectKickTimer(dp.id);
+      // Remove from room
+      room.players = room.players.filter(p => p.id !== dp.id);
+    }
+
+    // Reassign host if needed
+    if (disconnected.some(d => d.id === room.hostId) && room.players.length > 0) {
+      room.hostId = room.players[0].id;
+    }
+
+    // Notify remaining players
+    if (disconnected.length > 0) {
+      io.to(roomId).emit('room-updated', roomManager.getRoomInfo(room));
+    }
+  }
+
   function startDisconnectKickTimer(roomId: string, playerId: string) {
     clearDisconnectKickTimer(playerId);
     const timer = setTimeout(() => {
@@ -135,6 +159,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         });
         emitSound(roomId, 'game-win');
         clearTurnTimer(roomId);
+        cleanupDisconnectedPlayers(roomId);
       } else {
         broadcastGameState(io, roomId, engine, result.room.spectators);
         const state = engine.getState();
@@ -191,6 +216,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
           });
           emitSound(roomId, 'game-win');
           clearTurnTimer(roomId);
+          cleanupDisconnectedPlayers(roomId);
           broadcastGameState(io, roomId, engine, room.spectators);
         }
       }
@@ -349,6 +375,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         });
         emitSound(mapping.roomId, 'game-win');
         clearTurnTimer(mapping.roomId);
+        cleanupDisconnectedPlayers(mapping.roomId);
       } else if (result.playerFinished) {
         // A player finished but game continues with remaining players
         emitSound(mapping.roomId, 'game-win');

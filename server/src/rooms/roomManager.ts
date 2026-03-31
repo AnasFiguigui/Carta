@@ -272,7 +272,16 @@ export class RoomManager {
           engine.disconnectPlayer(playerId);
         }
       }
-      return { roomId, playerId, room };
+      // Reassign host if the leaving player was host
+      let newHostId: string | undefined;
+      if (room.hostId === playerId) {
+        const connectedPlayer = room.players.find(p => p.id !== playerId && p.isConnected);
+        if (connectedPlayer) {
+          room.hostId = connectedPlayer.id;
+          newHostId = connectedPlayer.id;
+        }
+      }
+      return { roomId, playerId, room, newHostId };
     }
 
     // Remove player from lobby
@@ -362,6 +371,19 @@ export class RoomManager {
 
     if (room.hostId !== mapping.playerId) {
       return { success: false, error: 'Only the host can restart the game' };
+    }
+
+    // Remove disconnected players before restarting
+    const disconnected = room.players.filter(p => !p.isConnected);
+    for (const dp of disconnected) {
+      room.players = room.players.filter(p => p.id !== dp.id);
+      // Clean up socket mappings
+      for (const [sid, m] of this.socketMap.entries()) {
+        if (m.roomId === room.id && m.playerId === dp.id) {
+          this.socketMap.delete(sid);
+          break;
+        }
+      }
     }
 
     if (room.players.length < 2) {

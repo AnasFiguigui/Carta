@@ -74,6 +74,7 @@ export default function GameBoard() {
   const isMobile = useIsMobile();
   const chatMessages = useGameStore((s) => s.chatMessages);
   const hostId = useGameStore((s) => s.hostId);
+  const roomPlayers = useGameStore((s) => s.players);
 
   const myPlayerIndex = gameState?.players.findIndex((p) => p.id === playerId) ?? -1;
   const isMyTurn = gameState ? gameState.currentPlayerIndex === myPlayerIndex : false;
@@ -221,9 +222,17 @@ export default function GameBoard() {
 
       {/* Right side: Room code + Leave */}
       <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-        <div className="px-2 py-1 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60">
+        <button
+          onClick={() => {
+            const link = `${window.location.origin}?room=${gameState.roomId}`;
+            navigator.clipboard.writeText(link).catch(() => {});
+          }}
+          className="px-2 py-1 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60 hover:bg-white/10 transition-colors cursor-pointer"
+          title="Click to copy room link"
+        >
           <span className="font-bold text-yellow-300">{gameState.roomId}</span>
-        </div>
+          <span className="ml-1">📋</span>
+        </button>
         <button
           onClick={() => {
             getSocket().emit('leave-room');
@@ -283,7 +292,7 @@ export default function GameBoard() {
               cardAnimationType === 'draw' ? 'card-anim-draw' : 'card-anim-play'
             }`}
             style={{
-              left: '50%',
+              left: cardAnimationType === 'play' ? 'calc(50% + 80px)' : '50%',
               top: cardAnimationType === 'draw' ? '50%' : 'calc(100% - 180px)',
               transform: 'translate(-50%, -50%)',
             }}
@@ -368,7 +377,7 @@ export default function GameBoard() {
             {/* Host controls */}
             {isHost && !isSpectator && (
               <div className="flex flex-col gap-2 mt-4">
-                <p className="text-white/50 text-xs mb-1">{gameState.players.length} player{gameState.players.length !== 1 ? 's' : ''} in room</p>
+                <p className="text-white/50 text-xs mb-1">{roomPlayers.length} player{roomPlayers.length !== 1 ? 's' : ''} in room</p>
                 <button
                   onClick={handleRestartGame}
                   className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg

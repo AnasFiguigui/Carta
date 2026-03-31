@@ -94,7 +94,7 @@ export function useSocketEvents() {
       });
     });
 
-    socket.on('player-left', () => {
+    socket.on('player-left', (data) => {
       getState().addChatMessage({
         playerId: 'system',
         playerName: 'System',

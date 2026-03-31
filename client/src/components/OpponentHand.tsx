@@ -62,7 +62,6 @@ export default function OpponentHand({
             size="lg"
             isCurrentTurn={isCurrentTurn && !isFinished}
             isDisconnected={!player.isConnected}
-            showConnectionDot={true}
             turnStartedAt={showTimer ? turnStartedAt : undefined}
             turnTimeoutMs={showTimer ? turnTimeoutMs : undefined}
           />
