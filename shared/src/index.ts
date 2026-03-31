@@ -93,6 +93,8 @@ export interface GameState {
   pendingDrawAmount: number;   // Stacked +2/+5 accumulation
   forcedSuit: Suit | null;     // After a 7 is played
   winnerId: string | null;
+  loserId: string | null;
+  finishedPlayerIds: string[];
   lastAction: GameAction | null;
   turnTimeoutMs: number;
   turnStartedAt: number;       // timestamp when current turn started
@@ -114,6 +116,8 @@ export interface ClientGameState {
   pendingDrawAmount: number;
   forcedSuit: Suit | null;
   winnerId: string | null;
+  loserId: string | null;
+  finishedPlayerIds: string[];
   lastAction: GameAction | null;
   turnStartedAt: number;
   turnTimeoutMs: number;
@@ -189,6 +193,7 @@ export interface ClientToServerEvents {
   'draw-card': () => void;
   'choose-suit': (data: { suit: Suit }) => void;
   'pass-turn': () => void;
+  'restart-game': () => void;
   'request-state': () => void;
   'chat-message': (data: { message: string }) => void;
   'join-as-player': (cb: (res: { success: boolean; error?: string }) => void) => void;

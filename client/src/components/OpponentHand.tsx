@@ -12,6 +12,7 @@ interface OpponentProps {
   gamePhase: GamePhase;
   pendingDrawAmount: number;
   currentPlayerId: string | undefined;
+  isFinished?: boolean;
 }
 
 export default function OpponentHand({
@@ -23,6 +24,7 @@ export default function OpponentHand({
   gamePhase,
   pendingDrawAmount,
   currentPlayerId,
+  isFinished = false,
 }: OpponentProps) {
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
@@ -32,7 +34,7 @@ export default function OpponentHand({
   const fanAngle = Math.min(cardCount * 18, 120);
   const startAngle = -fanAngle / 2;
 
-  const showTimer = isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
+  const showTimer = isCurrentTurn && !isFinished && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
 
   return (
     <div
@@ -46,6 +48,11 @@ export default function OpponentHand({
     >
       {/* Container for avatar + cards below it */}
       <div className="relative" style={{ width: 140, height: 140 }}>
+        {/* Crown for finished players */}
+        {isFinished && (
+          <div className="absolute left-1/2 -translate-x-1/2 -top-1 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
+        )}
+
         {/* Avatar (upper portion) */}
         <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: 8 }}>
           <Avatar
@@ -53,15 +60,15 @@ export default function OpponentHand({
             avatarId={player.avatarId}
             avatarColor={player.avatarColor}
             size="lg"
-            isCurrentTurn={isCurrentTurn}
+            isCurrentTurn={isCurrentTurn && !isFinished}
             isDisconnected={!player.isConnected}
             turnStartedAt={showTimer ? turnStartedAt : undefined}
             turnTimeoutMs={showTimer ? turnTimeoutMs : undefined}
           />
         </div>
 
-        {/* Cards fanned in an arc below the avatar, facing the deck */}
-        {Array.from({ length: cardCount }).map((_, i) => {
+        {/* Cards fanned in an arc below the avatar — only if not finished */}
+        {!isFinished && Array.from({ length: cardCount }).map((_, i) => {
           const angle = cardCount > 1
             ? startAngle + (i / (cardCount - 1)) * fanAngle
             : 0;

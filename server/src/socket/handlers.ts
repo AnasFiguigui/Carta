@@ -234,14 +234,22 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
       // Check game over
       const state = engine.getState();
-      if (state.winnerId) {
+      if (state.phase === GamePhase.GameOver) {
         const winner = state.players.find(p => p.id === state.winnerId);
         io.to(mapping.roomId).emit('game-over', {
-          winnerId: state.winnerId,
+          winnerId: state.winnerId || '',
           winnerName: winner?.name || 'Unknown',
         });
         emitSound(mapping.roomId, 'game-win');
         clearTurnTimer(mapping.roomId);
+      } else if (result.playerFinished) {
+        // A player finished but game continues with remaining players
+        emitSound(mapping.roomId, 'game-win');
+        io.to(mapping.roomId).emit('turn-changed', {
+          currentPlayerIndex: state.currentPlayerIndex,
+          turnStartedAt: state.turnStartedAt,
+        });
+        startTurnTimer(mapping.roomId);
       } else if (state.phase === GamePhase.Playing) {
         // Start timer for next player's turn
         io.to(mapping.roomId).emit('turn-changed', {
@@ -439,6 +447,34 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         }
         io.to(result.room.id).emit('room-updated', roomManager.getRoomInfo(result.room));
       }
+    });
+
+    // ===== RESTART GAME (host only, post-game) =====
+    socket.on('restart-game', () => {
+      const result = roomManager.restartGame(socket.id);
+      if (!result.success || !result.engine || !result.room) {
+        socket.emit('error', { message: result.error || 'Failed to restart game' });
+        return;
+      }
+
+      // Send individual game state to each player
+      for (const player of result.room.players) {
+        const playerSockets = getPlayerSockets(io, result.room.id, player.id);
+        for (const sid of playerSockets) {
+          io.to(sid).emit('game-state', result.engine.getClientState(player.id, result.room.spectators));
+        }
+      }
+
+      // Send state to spectators
+      for (const spec of result.room.spectators) {
+        const specSockets = getSpectatorSockets(io, result.room.id, spec.id);
+        for (const sid of specSockets) {
+          io.to(sid).emit('game-state', result.engine.getClientState('__spectator__', result.room.spectators));
+        }
+      }
+
+      emitSound(result.room.id, 'turn-start');
+      startTurnTimer(result.room.id);
     });
 
     // ===== CHAT =====

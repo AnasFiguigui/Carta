@@ -21,7 +21,6 @@ export function isValidPlay(
 
     if (topEffect === 'draw_two' && cardEffect === 'draw_two') return true;
     if (topEffect === 'draw_five' && card.value === 2 && card.suit === 'coins') return true;
-    if (pendingDrawAmount >= 5 && cardEffect === 'draw_two') return true;
     return false;
   }
 

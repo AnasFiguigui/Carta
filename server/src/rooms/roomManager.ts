@@ -346,6 +346,39 @@ export class RoomManager {
     return { success: true, engine, room };
   }
 
+  /** Restart game immediately (host only, post-game) */
+  restartGame(socketId: string): { success: boolean; error?: string; engine?: GameEngine; room?: Room } {
+    const mapping = this.socketMap.get(socketId);
+    if (!mapping) return { success: false, error: 'Not in a room' };
+
+    const room = this.rooms.get(mapping.roomId);
+    if (!room) return { success: false, error: 'Room not found' };
+
+    if (room.hostId !== mapping.playerId) {
+      return { success: false, error: 'Only the host can restart the game' };
+    }
+
+    if (room.players.length < 2) {
+      return { success: false, error: 'Need at least 2 players' };
+    }
+
+    // Reset player state
+    room.players.forEach((p, i) => {
+      p.hand = [];
+      p.cardCount = 0;
+      p.isReady = false;
+      p.seatIndex = i;
+    });
+
+    const engine = new GameEngine(room.id, room.players);
+    engine.startGame();
+
+    this.engines.set(room.id, engine);
+    room.gameState = engine.getState();
+
+    return { success: true, engine, room };
+  }
+
   /** Return game to lobby (post-game) */
   returnToLobby(roomId: string): Room | null {
     const room = this.rooms.get(roomId);

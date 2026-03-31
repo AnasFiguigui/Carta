@@ -8,7 +8,6 @@ import OpponentHand from './OpponentHand';
 import CenterArea from './CenterArea';
 import SuitSelector from './SuitSelector';
 import ChatPanel from './ChatPanel';
-import SpectatorPanel from './SpectatorPanel';
 import Avatar from './Avatar';
 import { playSound } from '../lib/sounds';
 
@@ -68,8 +67,10 @@ export default function GameBoard() {
   const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
   const [showRules, setShowRules] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showSpectators, setShowSpectators] = useState(false);
   const isMobile = useIsMobile();
   const chatMessages = useGameStore((s) => s.chatMessages);
+  const hostId = useGameStore((s) => s.hostId);
 
   const myPlayerIndex = gameState?.players.findIndex((p) => p.id === playerId) ?? -1;
   const isMyTurn = gameState ? gameState.currentPlayerIndex === myPlayerIndex : false;
@@ -125,7 +126,17 @@ export default function GameBoard() {
     getSocket().emit('pass-turn');
   };
 
+  const handleRestartGame = () => {
+    getSocket().emit('restart-game');
+  };
+
+  const handleJoinAsPlayer = () => {
+    getSocket().emit('join-as-player', () => {});
+  };
+
   const currentTurnPlayer = gameState.players[gameState.currentPlayerIndex];
+  const isHost = playerId === hostId;
+  const myIsFinished = gameState.finishedPlayerIds?.includes(playerId) ?? false;
 
   return (
     <div className="w-full h-screen felt-bg perspective-container relative overflow-hidden">
@@ -161,11 +172,44 @@ export default function GameBoard() {
             )}
           </button>
         )}
-        <SpectatorPanel
-          spectators={gameState.spectators || []}
-          canJoin={gameState.players.length < 6 && (gameState.phase === 'lobby' || gameState.phase === 'game_over')}
-        />
+        {/* Spectator toggle (mobile) */}
+        {isMobile && (gameState.spectators?.length ?? 0) > 0 && (
+          <button
+            onClick={() => setShowSpectators(!showSpectators)}
+            className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
+                       rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+            title="Spectators"
+          >
+            👁 {gameState.spectators.length}
+          </button>
+        )}
+        {/* Spectator avatars (desktop) */}
+        {!isMobile && (gameState.spectators?.length ?? 0) > 0 && (
+          <div className="flex flex-col gap-1.5 mt-1">
+            <span className="text-white/30 text-[10px] text-center">👁 {gameState.spectators.length}</span>
+            {gameState.spectators.map(spec => (
+              <div key={spec.id} title={spec.name}>
+                <Avatar name={spec.name} avatarId={spec.avatarId} avatarColor={spec.avatarColor} size="sm" />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Mobile spectator popover */}
+      {isMobile && showSpectators && (gameState.spectators?.length ?? 0) > 0 && (
+        <div className="absolute top-14 left-3 z-40 bg-gray-900/95 border border-white/20 rounded-xl p-3 shadow-2xl backdrop-blur-sm animate-fade-in">
+          <div className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Spectators</div>
+          <div className="flex flex-col gap-2">
+            {gameState.spectators.map(spec => (
+              <div key={spec.id} className="flex items-center gap-2">
+                <Avatar name={spec.name} avatarId={spec.avatarId} avatarColor={spec.avatarColor} size="sm" />
+                <span className="text-white/70 text-xs">{spec.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Right side: Room code + Leave */}
       <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
@@ -203,6 +247,7 @@ export default function GameBoard() {
           gamePhase={gameState.phase}
           pendingDrawAmount={gameState.pendingDrawAmount}
           currentPlayerId={currentTurnPlayer?.id}
+          isFinished={gameState.finishedPlayerIds?.includes(opponent.id) ?? false}
         />
       ))}
 
@@ -223,9 +268,14 @@ export default function GameBoard() {
       {myPlayer ? (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
           {/* Avatar row: pass button (left) + avatar with timer ring */}
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 relative">
+            {/* Crown for finished player */}
+            {myIsFinished && (
+              <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
+            )}
+
             {/* Pass turn button — only after drawing, when player has playable cards but chooses not to play */}
-            {isMyTurn && !isChoosingWild && gameState.hasDrawnThisTurn && playableCardIds.size > 0 && (
+            {isMyTurn && !isChoosingWild && !myIsFinished && gameState.hasDrawnThisTurn && playableCardIds.size > 0 && (
               <button
                 onClick={handlePassTurn}
                 className="px-3 py-1.5 bg-gray-700/80 hover:bg-gray-600 rounded-lg text-xs text-white
@@ -240,18 +290,22 @@ export default function GameBoard() {
               avatarId={myPlayer.avatarId}
               avatarColor={myPlayer.avatarColor}
               size="lg"
-              isCurrentTurn={isMyTurn}
-              turnStartedAt={isMyTurn && gameState.phase === 'playing' && gameState.turnStartedAt > 0 ? gameState.turnStartedAt : undefined}
-              turnTimeoutMs={isMyTurn && gameState.phase === 'playing' ? gameState.turnTimeoutMs : undefined}
+              isCurrentTurn={isMyTurn && !myIsFinished}
+              turnStartedAt={isMyTurn && !myIsFinished && gameState.phase === 'playing' && gameState.turnStartedAt > 0 ? gameState.turnStartedAt : undefined}
+              turnTimeoutMs={isMyTurn && !myIsFinished && gameState.phase === 'playing' ? gameState.turnTimeoutMs : undefined}
               onTimerWarning={() => playSound('timer-tick')}
             />
           </div>
           <span className="text-white/70 text-xs font-medium">{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
-          <PlayerHand
-            cards={gameState.myHand}
-            playableCardIds={playableCardIds}
-            isMyTurn={isMyTurn}
-          />
+          {!myIsFinished ? (
+            <PlayerHand
+              cards={gameState.myHand}
+              playableCardIds={playableCardIds}
+              isMyTurn={isMyTurn}
+            />
+          ) : (
+            <div className="text-green-400 text-sm font-bold mt-1">✅ Finished!</div>
+          )}
         </div>
       ) : (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
@@ -267,26 +321,61 @@ export default function GameBoard() {
       {/* Game Over overlay */}
       {isGameOver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-fade-in">
-          <div className="bg-gray-900/95 border-2 border-yellow-500 rounded-2xl p-10 shadow-2xl text-center animate-bounce-in">
-            <div className="text-5xl mb-4">🎉</div>
+          <div className="bg-gray-900/95 border-2 border-yellow-500 rounded-2xl p-10 shadow-2xl text-center animate-bounce-in max-w-sm w-full mx-4">
+            <div className="text-5xl mb-4">🏆</div>
             <h2 className="text-3xl font-bold text-yellow-300 mb-2">Game Over!</h2>
-            <p className="text-xl text-white mb-6">
-              {gameState.winnerId === playerId
-                ? 'You Win!'
-                : `${gameState.players.find((p) => p.id === gameState.winnerId)?.name || 'Someone'} Wins!`}
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => {
-                  getSocket().emit('leave-room');
-                  useGameStore.getState().reset();
-                }}
-                className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                           transition-colors shadow-lg"
-              >
-                Back to Home
-              </button>
-            </div>
+
+            {/* Winner */}
+            {gameState.winnerId && (
+              <p className="text-lg text-green-400 mb-1">
+                🏆 {gameState.winnerId === playerId ? 'You' : gameState.players.find((p) => p.id === gameState.winnerId)?.name || 'Someone'} won!
+              </p>
+            )}
+
+            {/* Loser */}
+            {gameState.loserId && (
+              <p className="text-lg text-red-400 mb-4">
+                💀 {gameState.loserId === playerId ? 'You' : gameState.players.find((p) => p.id === gameState.loserId)?.name || 'Someone'} lost!
+              </p>
+            )}
+
+            {/* Host controls */}
+            {isHost && !isSpectator && (
+              <div className="flex flex-col gap-2 mt-4">
+                <button
+                  onClick={handleRestartGame}
+                  className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                             transition-colors shadow-lg"
+                >
+                  🚀 Start Now (Play Again)
+                </button>
+                <button
+                  disabled
+                  className="px-6 py-3 bg-gray-700 text-gray-400 font-bold rounded-lg cursor-not-allowed
+                             border border-white/10"
+                >
+                  ⏳ Wait for more players
+                </button>
+              </div>
+            )}
+
+            {/* Non-host player */}
+            {!isHost && !isSpectator && (
+              <p className="text-white/60 mt-4 text-sm">Waiting for host to restart...</p>
+            )}
+
+            {/* Spectator */}
+            {isSpectator && (
+              <div className="mt-4">
+                <button
+                  onClick={handleJoinAsPlayer}
+                  className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg
+                             transition-colors shadow-lg"
+                >
+                  🎮 Join as Player
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

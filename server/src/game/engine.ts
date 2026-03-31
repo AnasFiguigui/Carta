@@ -41,6 +41,8 @@ export class GameEngine {
       pendingDrawAmount: 0,
       forcedSuit: null,
       winnerId: null,
+      loserId: null,
+      finishedPlayerIds: [],
       lastAction: null,
       turnTimeoutMs: TURN_TIMEOUT_MS,
       turnStartedAt: 0,
@@ -79,6 +81,8 @@ export class GameEngine {
     this.state.pendingDrawAmount = 0;
     this.state.forcedSuit = null;
     this.state.winnerId = null;
+    this.state.loserId = null;
+    this.state.finishedPlayerIds = [];
     this.state.turnStartedAt = Date.now();
   }
 
@@ -123,6 +127,8 @@ export class GameEngine {
       turnTimeoutMs: this.state.turnTimeoutMs,
       spectators,
       hasDrawnThisTurn: this.state.hasDrawnThisTurn,
+      loserId: this.state.loserId,
+      finishedPlayerIds: [...this.state.finishedPlayerIds],
     };
   }
 
@@ -134,9 +140,21 @@ export class GameEngine {
   /** Advance to next player (respecting direction) */
   private advanceTurn(skip: boolean = false): void {
     const count = this.state.players.length;
-    let steps = skip ? 2 : 1;
-    this.state.currentPlayerIndex =
-      (this.state.currentPlayerIndex + this.state.direction * steps + count * steps) % count;
+
+    // Move to next active (non-finished) player
+    let next = this.state.currentPlayerIndex;
+    do {
+      next = (next + this.state.direction + count) % count;
+    } while (this.state.finishedPlayerIds.includes(this.state.players[next].id));
+
+    // If skip effect, move one more time past finished players
+    if (skip) {
+      do {
+        next = (next + this.state.direction + count) % count;
+      } while (this.state.finishedPlayerIds.includes(this.state.players[next].id));
+    }
+
+    this.state.currentPlayerIndex = next;
     // Offset by 2s so the client timer shows a brief cooldown before counting down
     this.state.turnStartedAt = Date.now() + TURN_COOLDOWN_MS;
     this.state.hasDrawnThisTurn = false;
@@ -172,6 +190,7 @@ export class GameEngine {
     effect?: CardEffect;
     card?: Card;
     nextPlayerIndex?: number;
+    playerFinished?: boolean;
   } {
     if (this.state.phase !== GamePhase.Playing && this.state.phase !== GamePhase.ChoosingWildSuit) {
       return { success: false, error: 'Game is not in playing phase' };
@@ -216,23 +235,43 @@ export class GameEngine {
       timestamp: Date.now(),
     };
 
-    // Check win condition
+    // Check if player emptied their hand
+    let playerFinished = false;
     if (currentPlayer.hand.length === 0) {
-      this.state.phase = GamePhase.GameOver;
-      this.state.winnerId = playerId;
-      return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex };
+      if (!this.state.winnerId) {
+        this.state.winnerId = playerId;
+      }
+      this.state.finishedPlayerIds.push(playerId);
+      playerFinished = true;
+
+      // Count remaining active players
+      const activePlayers = this.state.players.filter(
+        p => !this.state.finishedPlayerIds.includes(p.id)
+      );
+
+      if (activePlayers.length <= 1) {
+        // Game over — last player standing is the loser
+        this.state.loserId = activePlayers.length === 1 ? activePlayers[0].id : null;
+        this.state.phase = GamePhase.GameOver;
+        return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex, playerFinished };
+      }
     }
 
-    // Apply effect
+    // Apply effect (even if player finished — effects still hit the next player)
     switch (effect) {
       case CardEffect.Skip: {
-        this.advanceTurn(true); // Skip next player
+        this.advanceTurn(true);
         break;
       }
       case CardEffect.WildSuit: {
-        // Player must choose a suit next
-        this.state.phase = GamePhase.ChoosingWildSuit;
-        return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex };
+        if (playerFinished) {
+          // Finished player can't choose a suit — just advance
+          this.advanceTurn();
+        } else {
+          this.state.phase = GamePhase.ChoosingWildSuit;
+          return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex, playerFinished };
+        }
+        break;
       }
       case CardEffect.DrawTwo: {
         this.state.pendingDrawAmount += 2;
@@ -250,7 +289,7 @@ export class GameEngine {
       }
     }
 
-    return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex };
+    return { success: true, effect, card, nextPlayerIndex: this.state.currentPlayerIndex, playerFinished };
   }
 
   /** Choose a suit after playing a 7 */

@@ -70,12 +70,8 @@ export function isValidPlay(
     if (topEffect === CardEffect.DrawTwo && cardEffect === CardEffect.DrawTwo) {
       return true;
     }
-    // If top effect is DrawFive (1 of Coins), can stack with 2 of Coins (special exception)
+    // If top effect is DrawFive (1 of Coins), can only stack with 2 of Coins
     if (topEffect === CardEffect.DrawFive && card.value === 2 && card.suit === Suit.Coins) {
-      return true;
-    }
-    // If top was 2 of Coins stacked on DrawFive, still allow DrawTwo stacking
-    if (pendingDrawAmount >= 5 && cardEffect === CardEffect.DrawTwo) {
       return true;
     }
     // No other cards can be played during a pending draw
