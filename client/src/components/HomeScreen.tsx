@@ -131,7 +131,7 @@ export default function HomeScreen() {
                     handleCreate();
                   }}
                   className="py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                             transition-all hover:scale-105 shadow-lg"
+                             transition-all hover:scale-105 active:scale-95 shadow-lg"
                 >
                   Create Room
                 </button>
@@ -141,7 +141,7 @@ export default function HomeScreen() {
                     setMode('join');
                   }}
                   className="py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg
-                             border border-white/20 transition-all hover:scale-105"
+                             border border-white/20 transition-all hover:scale-105 active:scale-95"
                 >
                   Join Room
                 </button>
@@ -195,7 +195,7 @@ export default function HomeScreen() {
               <button
                 onClick={handleJoin}
                 className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                           transition-all hover:scale-105 shadow-lg"
+                           transition-all hover:scale-105 active:scale-95 shadow-lg"
               >
                 Join Game
               </button>

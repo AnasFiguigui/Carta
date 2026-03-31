@@ -71,10 +71,12 @@ export default function GameBoard() {
   const [showRules, setShowRules] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showSpectators, setShowSpectators] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const isMobile = useIsMobile();
   const chatMessages = useGameStore((s) => s.chatMessages);
   const hostId = useGameStore((s) => s.hostId);
   const roomPlayers = useGameStore((s) => s.players);
+  const storeIsSpectator = useGameStore((s) => s.isSpectator);
 
   const myPlayerIndex = gameState?.players.findIndex((p) => p.id === playerId) ?? -1;
   const isMyTurn = gameState ? gameState.currentPlayerIndex === myPlayerIndex : false;
@@ -96,6 +98,8 @@ export default function GameBoard() {
   }, [gameState?.players, myPlayerIndex]);
 
   const isSpectator = myPlayerIndex === -1;
+  // For game-over overlay, use the store flag which updates in real-time
+  const isSpectatorForOverlay = isGameOver ? storeIsSpectator : isSpectator;
   const opponentPositions = getOpponentPositions(
     isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0)
   );
@@ -143,8 +147,14 @@ export default function GameBoard() {
     });
   };
 
+  const handleBecomeSpectator = () => {
+    getSocket().emit('become-spectator');
+    useGameStore.getState().setIsSpectator(true);
+  };
+
   const currentTurnPlayer = gameState.players[gameState.currentPlayerIndex];
   const isHost = playerId === hostId;
+  const isHostForOverlay = isGameOver ? (roomPlayers.some(p => p.id === playerId) && playerId === hostId) : isHost;
   const myIsFinished = gameState.finishedPlayerIds?.includes(playerId) ?? false;
 
   return (
@@ -154,7 +164,7 @@ export default function GameBoard() {
         <button
           onClick={() => setShowRules(true)}
           className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
-                     rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+                     rounded-lg border border-white/20 transition-all backdrop-blur-sm active:scale-90"
           title="Game Rules"
         >
           📖
@@ -162,7 +172,7 @@ export default function GameBoard() {
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
           className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
-                     rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+                     rounded-lg border border-white/20 transition-all backdrop-blur-sm active:scale-90"
           title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
         >
           {soundEnabled ? '🔊' : '🔇'}
@@ -172,7 +182,7 @@ export default function GameBoard() {
           <button
             onClick={() => setShowChat(!showChat)}
             className="relative px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white/80 hover:text-white
-                       rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+                       rounded-lg border border-white/20 transition-all backdrop-blur-sm active:scale-90"
             title="Chat"
           >
             💬
@@ -226,12 +236,18 @@ export default function GameBoard() {
           onClick={() => {
             const link = `${window.location.origin}?room=${gameState.roomId}`;
             navigator.clipboard.writeText(link).catch(() => {});
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 1500);
           }}
-          className="px-2 py-1 bg-black/30 backdrop-blur-sm rounded-lg border border-white/10 text-xs text-white/60 hover:bg-white/10 transition-colors cursor-pointer"
+          className={`px-2 py-1 backdrop-blur-sm rounded-lg border text-xs transition-all cursor-pointer active:scale-95 ${
+            copiedLink
+              ? 'bg-green-600/30 border-green-400/40 text-green-300'
+              : 'bg-black/30 border-white/10 text-white/60 hover:bg-white/10'
+          }`}
           title="Click to copy room link"
         >
           <span className="font-bold text-yellow-300">{gameState.roomId}</span>
-          <span className="ml-1">📋</span>
+          <span className="ml-1">{copiedLink ? '✅' : '📋'}</span>
         </button>
         <button
           onClick={() => {
@@ -239,7 +255,7 @@ export default function GameBoard() {
             useGameStore.getState().reset();
           }}
           className="px-2 py-1 text-xs text-red-400 hover:text-red-300 bg-white/5 hover:bg-white/10
-                     rounded-lg border border-red-500/20 transition-colors"
+                     rounded-lg border border-red-500/20 transition-all active:scale-90"
         >
           ✕
         </button>
@@ -375,42 +391,51 @@ export default function GameBoard() {
             )}
 
             {/* Host controls */}
-            {isHost && !isSpectator && (
+            {isHostForOverlay && !isSpectatorForOverlay && (
               <div className="flex flex-col gap-2 mt-4">
                 <p className="text-white/50 text-xs mb-1">{roomPlayers.length} player{roomPlayers.length !== 1 ? 's' : ''} in room</p>
-                <button
-                  onClick={handleRestartGame}
-                  className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
-                             transition-colors shadow-lg"
-                >
-                  🚀 Start Now (Play Again)
-                </button>
-                <button
-                  disabled
-                  className="px-6 py-3 bg-gray-700 text-gray-400 font-bold rounded-lg cursor-not-allowed
-                             border border-white/10"
-                >
-                  ⏳ Wait for more players
-                </button>
+                {roomPlayers.filter(p => p.isConnected).length >= 2 ? (
+                  <button
+                    onClick={handleRestartGame}
+                    className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                               transition-all shadow-lg active:scale-95"
+                  >
+                    🚀 Play Again
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="px-6 py-3 bg-gray-700 text-gray-400 font-bold rounded-lg cursor-not-allowed
+                               border border-white/10"
+                  >
+                    ⏳ Waiting for players ({roomPlayers.filter(p => p.isConnected).length}/2)
+                  </button>
+                )}
               </div>
             )}
 
             {/* Non-host player */}
-            {!isHost && !isSpectator && (
+            {!isHostForOverlay && !isSpectatorForOverlay && (
               <p className="text-white/60 mt-4 text-sm">Waiting for host to restart...</p>
             )}
 
-            {/* Spectator */}
-            {isSpectator && (
-              <div className="mt-4">
-                <button
-                  onClick={handleJoinAsPlayer}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg
-                             transition-colors shadow-lg"
-                >
-                  🎮 Join as Player
-                </button>
-              </div>
+            {/* Toggle: Join as Player / Leave & Spectate */}
+            {isSpectatorForOverlay ? (
+              <button
+                onClick={handleJoinAsPlayer}
+                className="mt-3 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg
+                           transition-all shadow-lg active:scale-95"
+              >
+                🎮 Join as Player
+              </button>
+            ) : (
+              <button
+                onClick={handleBecomeSpectator}
+                className="mt-3 px-4 py-2 text-sm text-white/50 hover:text-white/80 bg-white/5 hover:bg-white/10
+                           rounded-lg border border-white/10 transition-all active:scale-95"
+              >
+                👁 Leave & Spectate
+              </button>
             )}
           </div>
         </div>

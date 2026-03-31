@@ -73,7 +73,7 @@ export default function Lobby() {
             {/* Invite link */}
             <button
               onClick={copyInviteLink}
-              className={`mt-3 w-full py-2 rounded-lg text-sm font-medium transition-all border
+              className={`mt-3 w-full py-2 rounded-lg text-sm font-medium transition-all border active:scale-95
                 ${copied
                   ? 'bg-green-500/20 border-green-500/30 text-green-300'
                   : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80'}`}
@@ -171,7 +171,7 @@ export default function Lobby() {
                 disabled={!canStart}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
                   ${canStart
-                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105'
+                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105 active:scale-95'
                     : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
               >
                 {canStart ? '🚀 Start Game' : 'Waiting for players to ready up...'}
@@ -181,8 +181,8 @@ export default function Lobby() {
                 onClick={handleToggleReady}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
                   ${players.find((p) => p.id === playerId)?.isReady
-                    ? 'bg-green-600 hover:bg-green-500 text-white'
-                    : 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105'}`}
+                    ? 'bg-green-600 hover:bg-green-500 text-white active:scale-95'
+                    : 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105 active:scale-95'}`}
               >
                 {players.find((p) => p.id === playerId)?.isReady ? '✓ Ready!' : 'Ready Up'}
               </button>
@@ -191,7 +191,7 @@ export default function Lobby() {
             <button
               onClick={handleLeave}
               className="px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg
-                         text-sm border border-red-500/20 transition-colors"
+                         text-sm border border-red-500/20 transition-all active:scale-95"
             >
               Leave
             </button>
