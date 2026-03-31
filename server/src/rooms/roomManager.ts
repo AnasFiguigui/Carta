@@ -540,4 +540,9 @@ export class RoomManager {
       if (mapping.roomId === roomId) this.spectatorSocketMap.delete(sid);
     }
   }
+
+  /** Get all rooms (for cleanup) */
+  getAllRooms(): Map<string, Room> {
+    return this.rooms;
+  }
 }

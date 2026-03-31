@@ -4,7 +4,12 @@ import {
   Suit,
   CARD_VALUES,
   CardEffect,
+  getCardEffect,
+  isValidPlay,
 } from 'shared';
+
+// Re-export shared logic so existing imports from deck.ts still work
+export { getCardEffect, isValidPlay };
 
 /** Build a fresh 40-card deck */
 export function createDeck(): Card[] {
@@ -25,71 +30,6 @@ export function shuffleDeck(deck: Card[]): Card[] {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
-}
-
-/** Determine the effect of a card */
-export function getCardEffect(card: Card): CardEffect {
-  // 1 of Coins → Draw Five
-  if (card.value === 1 && card.suit === Suit.Coins) {
-    return CardEffect.DrawFive;
-  }
-  // All 2s → Draw Two
-  if (card.value === 2) {
-    return CardEffect.DrawTwo;
-  }
-  // All 10s (Sota/Jack) → Skip
-  if (card.value === 10) {
-    return CardEffect.Skip;
-  }
-  // All 7s → Wild Suit
-  if (card.value === 7) {
-    return CardEffect.WildSuit;
-  }
-  return CardEffect.None;
-}
-
-/**
- * Check if a card can be played given the top card and game state.
- * @param card The card to play
- * @param topCard The current top card on the discard pile
- * @param forcedSuit If a 7 was played, the suit that was chosen
- * @param pendingDrawAmount If there's a pending draw stack
- */
-export function isValidPlay(
-  card: Card,
-  topCard: Card,
-  forcedSuit: Suit | null,
-  pendingDrawAmount: number
-): boolean {
-  // If there's a pending draw amount, only draw cards can be played to stack
-  if (pendingDrawAmount > 0) {
-    const topEffect = getCardEffect(topCard);
-    const cardEffect = getCardEffect(card);
-
-    // If top effect is DrawTwo, can stack with another DrawTwo
-    if (topEffect === CardEffect.DrawTwo && cardEffect === CardEffect.DrawTwo) {
-      return true;
-    }
-    // If top effect is DrawFive (1 of Coins), can only stack with 2 of Coins
-    if (topEffect === CardEffect.DrawFive && card.value === 2 && card.suit === Suit.Coins) {
-      return true;
-    }
-    // No other cards can be played during a pending draw
-    return false;
-  }
-
-  // If a forced suit is active (from a 7), must match that suit OR play another 7
-  if (forcedSuit !== null) {
-    if (card.value === 7) return true; // 7s can always be played as wild
-    return card.suit === forcedSuit;
-  }
-
-  // Normal play: match suit or value
-  if (card.suit === topCard.suit) return true;
-  if (card.value === topCard.value) return true;
-
-  // 7s are conditional wild: can only be played if matching suit or value (already covered above)
-  return false;
 }
 
 /** Deal cards from the deck to players */

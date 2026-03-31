@@ -216,3 +216,36 @@ export type SoundType =
   | 'player-join'
   | 'skip'
   | 'wild';
+
+// ===== SHARED GAME LOGIC =====
+/** Determine the effect of a card */
+export function getCardEffect(card: Card): CardEffect {
+  if (card.value === 1 && card.suit === Suit.Coins) return CardEffect.DrawFive;
+  if (card.value === 2) return CardEffect.DrawTwo;
+  if (card.value === 10) return CardEffect.Skip;
+  if (card.value === 7) return CardEffect.WildSuit;
+  return CardEffect.None;
+}
+
+/** Check if a card can be played given the top card and game state */
+export function isValidPlay(
+  card: Card,
+  topCard: Card,
+  forcedSuit: Suit | null,
+  pendingDrawAmount: number
+): boolean {
+  if (pendingDrawAmount > 0) {
+    const topEffect = getCardEffect(topCard);
+    const cardEffect = getCardEffect(card);
+    if (topEffect === CardEffect.DrawTwo && cardEffect === CardEffect.DrawTwo) return true;
+    if (topEffect === CardEffect.DrawFive && card.value === 2 && card.suit === Suit.Coins) return true;
+    return false;
+  }
+  if (forcedSuit !== null) {
+    if (card.value === 7) return true;
+    return card.suit === forcedSuit;
+  }
+  if (card.suit === topCard.suit) return true;
+  if (card.value === topCard.value) return true;
+  return false;
+}

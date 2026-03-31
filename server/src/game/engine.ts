@@ -146,14 +146,18 @@ export class GameEngine {
 
     // Move to next active (non-finished) player
     let next = this.state.currentPlayerIndex;
+    let iterations = 0;
     do {
       next = (next + this.state.direction + count) % count;
+      if (++iterations > count) return; // Safety: all players finished
     } while (this.state.finishedPlayerIds.includes(this.state.players[next].id));
 
     // If skip effect, move one more time past finished players
     if (skip) {
+      iterations = 0;
       do {
         next = (next + this.state.direction + count) % count;
+        if (++iterations > count) return;
       } while (this.state.finishedPlayerIds.includes(this.state.players[next].id));
     }
 

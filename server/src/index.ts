@@ -15,9 +15,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: /localhost:\d+$/,
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : /localhost:\d+$/,
     methods: ['GET', 'POST'],
   },
+  pingInterval: 25000,
+  pingTimeout: 20000,
 });
 
 const roomManager = new RoomManager();
