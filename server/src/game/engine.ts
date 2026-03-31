@@ -445,6 +445,18 @@ export class GameEngine {
     // If already finished, nothing to do
     if (this.state.finishedPlayerIds.includes(playerId)) return { gameOver: false };
 
+    // Return player's cards to the deck and shuffle them in
+    if (player.hand.length > 0) {
+      this.state.deck.push(...player.hand);
+      player.hand = [];
+      player.cardCount = 0;
+      // Shuffle deck so returned cards are distributed randomly
+      for (let i = this.state.deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.state.deck[i], this.state.deck[j]] = [this.state.deck[j], this.state.deck[i]];
+      }
+    }
+
     // Mark as finished (kicked)
     this.state.finishedPlayerIds.push(playerId);
 
@@ -466,7 +478,18 @@ export class GameEngine {
       p => !this.state.finishedPlayerIds.includes(p.id)
     );
     if (activePlayers.length <= 1) {
+      // Last remaining player is the loser, first finisher (if any) is the winner
       this.state.loserId = activePlayers.length === 1 ? activePlayers[0].id : null;
+      // Set winner if not already set (the first to empty hand wins; if nobody emptied, no winner)
+      if (!this.state.winnerId && this.state.loserId) {
+        // Find the first player who finished by emptying hand (not kicked)
+        // If none, the loser is just the last one left
+        const firstFinisher = this.state.finishedPlayerIds.find(id => {
+          const p = this.state.players.find(pl => pl.id === id);
+          return p && p.hand.length === 0;
+        });
+        this.state.winnerId = firstFinisher || null;
+      }
       this.state.phase = GamePhase.GameOver;
       return { gameOver: true };
     }

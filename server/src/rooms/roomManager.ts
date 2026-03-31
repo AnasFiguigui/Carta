@@ -449,6 +449,26 @@ export class RoomManager {
     return this.socketMap.get(socketId);
   }
 
+  /** Find socket ID for a player in a room */
+  getSocketIdForPlayer(roomId: string, playerId: string): string | undefined {
+    for (const [sid, mapping] of this.socketMap.entries()) {
+      if (mapping.roomId === roomId && mapping.playerId === playerId) {
+        return sid;
+      }
+    }
+    return undefined;
+  }
+
+  /** Remove a player from lobby/game-over (not during active game) */
+  removePlayer(roomId: string, playerId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    room.players = room.players.filter(p => p.id !== playerId);
+    const sid = this.getSocketIdForPlayer(roomId, playerId);
+    if (sid) this.socketMap.delete(sid);
+    room.players.forEach((p, i) => { p.seatIndex = i; });
+  }
+
   getRoomInfo(room: Room): RoomInfo & { players: PublicPlayer[] } {
     return {
       id: room.id,

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PublicPlayer, GamePhase } from 'shared';
 import { useGameStore } from '../lib/store';
+import { getSocket } from '../lib/socket';
 import Avatar from './Avatar';
 
 interface OpponentProps {
@@ -13,6 +14,7 @@ interface OpponentProps {
   pendingDrawAmount: number;
   currentPlayerId: string | undefined;
   isFinished?: boolean;
+  isHost?: boolean;
 }
 
 export default function OpponentHand({
@@ -25,6 +27,7 @@ export default function OpponentHand({
   pendingDrawAmount,
   currentPlayerId,
   isFinished = false,
+  isHost = false,
 }: OpponentProps) {
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
@@ -123,6 +126,18 @@ export default function OpponentHand({
         <span>{player.name}</span>
         <span className="ml-1.5 opacity-70">({cardCount})</span>
         {!player.isConnected && <span className="ml-1">📡</span>}
+        {isHost && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              getSocket().emit('kick-player', { targetPlayerId: player.id });
+            }}
+            className="ml-1.5 text-red-400 hover:text-red-300 opacity-60 hover:opacity-100 transition-all active:scale-90"
+            title={`Kick ${player.name}`}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Pending draw indicator for target player */}

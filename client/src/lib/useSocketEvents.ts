@@ -153,6 +153,9 @@ export function useSocketEvents() {
 
     socket.on('error', (data) => {
       console.error('Server error:', data.message);
+      if (data.message === 'You have been kicked from the room') {
+        getState().reset();
+      }
     });
 
     // No cleanup — listeners must survive React StrictMode's

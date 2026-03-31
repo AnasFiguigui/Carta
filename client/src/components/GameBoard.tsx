@@ -281,6 +281,7 @@ export default function GameBoard() {
           pendingDrawAmount={gameState.pendingDrawAmount}
           currentPlayerId={currentTurnPlayer?.id}
           isFinished={gameState.finishedPlayerIds?.includes(opponent.id) ?? false}
+          isHost={isHost}
         />
       ))}
 

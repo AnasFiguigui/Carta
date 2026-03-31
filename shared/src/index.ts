@@ -198,6 +198,7 @@ export interface ClientToServerEvents {
   'chat-message': (data: { message: string }) => void;
   'join-as-player': (cb: (res: { success: boolean; error?: string; playerId?: string }) => void) => void;
   'become-spectator': () => void;
+  'kick-player': (data: { targetPlayerId: string }) => void;
 }
 
 // ===== SOUND TYPES =====

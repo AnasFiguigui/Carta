@@ -11,7 +11,7 @@ const MAX_CHAT_LENGTH = 200;
 const TURN_TIMEOUT_MS = 30_000;
 const COOLDOWN_MS = 3_000;
 const TURN_COOLDOWN_MS = 2_000;
-const DISCONNECT_KICK_MS = 2 * 60 * 1000; // 2 minutes
+const DISCONNECT_KICK_MS = 60 * 1000; // 1 minute
 
 function sanitizeName(name: string): string {
   return name.trim().slice(0, MAX_NAME_LENGTH).replace(/[<>&"'/]/g, '');
@@ -586,6 +586,80 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
           io.to(result.room.id).emit('spectator-joined', spectator);
         }
         io.to(result.room.id).emit('room-updated', roomManager.getRoomInfo(result.room));
+      }
+    });
+
+    // ===== KICK PLAYER (host only) =====
+    socket.on('kick-player', (data) => {
+      const mapping = roomManager.getMapping(socket.id);
+      if (!mapping) return;
+
+      const room = roomManager.getRoom(mapping.roomId);
+      if (!room) return;
+
+      // Only host can kick
+      if (room.hostId !== mapping.playerId) {
+        socket.emit('error', { message: 'Only the host can kick players' });
+        return;
+      }
+
+      // Can't kick yourself
+      if (data.targetPlayerId === mapping.playerId) {
+        socket.emit('error', { message: 'Cannot kick yourself' });
+        return;
+      }
+
+      const target = room.players.find(p => p.id === data.targetPlayerId);
+      if (!target) {
+        socket.emit('error', { message: 'Player not found' });
+        return;
+      }
+
+      const engine = roomManager.getEngine(mapping.roomId);
+      const state = engine?.getState();
+
+      // During active game: use kickPlayer engine method
+      if (engine && state && state.phase !== GamePhase.Lobby && state.phase !== GamePhase.GameOver) {
+        const result = roomManager.kickDisconnectedPlayer(mapping.roomId, data.targetPlayerId);
+        if (!result.success || !result.room) return;
+
+        io.to(mapping.roomId).emit('player-left', { playerId: data.targetPlayerId, newHostId: result.room.hostId });
+        io.to(mapping.roomId).emit('room-updated', roomManager.getRoomInfo(result.room));
+
+        if (result.gameOver) {
+          const gs = engine.getState();
+          const winner = gs.players.find(p => p.id === gs.winnerId);
+          io.to(mapping.roomId).emit('game-over', {
+            winnerId: gs.winnerId || '',
+            winnerName: winner?.name || 'Unknown',
+          });
+          emitSound(mapping.roomId, 'game-win');
+          clearTurnTimer(mapping.roomId);
+          cleanupDisconnectedPlayers(mapping.roomId);
+        } else {
+          broadcastGameState(io, mapping.roomId, engine, result.room.spectators);
+          const gs = engine.getState();
+          if (gs.phase === GamePhase.Playing) {
+            io.to(mapping.roomId).emit('turn-changed', {
+              currentPlayerIndex: gs.currentPlayerIndex,
+              turnStartedAt: gs.turnStartedAt,
+            });
+            startTurnTimer(mapping.roomId);
+          }
+        }
+      } else {
+        // In lobby or game-over: just remove the player
+        const kickedSid = roomManager.getSocketIdForPlayer(mapping.roomId, data.targetPlayerId);
+        roomManager.removePlayer(mapping.roomId, data.targetPlayerId);
+
+        if (kickedSid) {
+          io.to(kickedSid).emit('error', { message: 'You have been kicked from the room' });
+          const kickedSocket = io.sockets.sockets.get(kickedSid);
+          if (kickedSocket) kickedSocket.leave(mapping.roomId);
+        }
+
+        io.to(mapping.roomId).emit('player-left', { playerId: data.targetPlayerId, newHostId: room.hostId });
+        io.to(mapping.roomId).emit('room-updated', roomManager.getRoomInfo(room));
       }
     });
 
