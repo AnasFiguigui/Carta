@@ -9,7 +9,6 @@ import CenterArea from './CenterArea';
 import SuitSelector from './SuitSelector';
 import ChatPanel from './ChatPanel';
 import SpectatorPanel from './SpectatorPanel';
-import TurnTimer from './TurnTimer';
 import Avatar from './Avatar';
 import { playSound } from '../lib/sounds';
 
@@ -223,7 +222,7 @@ export default function GameBoard() {
       {/* My avatar + hand (bottom center) — only for players */}
       {myPlayer ? (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
-          {/* Avatar row: pass button (left) + avatar + timer (right) */}
+          {/* Avatar row: pass button (left) + avatar with timer ring */}
           <div className="flex items-center gap-2 mb-1">
             {/* Pass turn button — only after drawing, when player has playable cards but chooses not to play */}
             {isMyTurn && !isChoosingWild && gameState.hasDrawnThisTurn && playableCardIds.size > 0 && (
@@ -242,18 +241,10 @@ export default function GameBoard() {
               avatarColor={myPlayer.avatarColor}
               size="lg"
               isCurrentTurn={isMyTurn}
+              turnStartedAt={isMyTurn && gameState.phase === 'playing' && gameState.turnStartedAt > 0 ? gameState.turnStartedAt : undefined}
+              turnTimeoutMs={isMyTurn && gameState.phase === 'playing' ? gameState.turnTimeoutMs : undefined}
+              onTimerWarning={() => playSound('timer-tick')}
             />
-
-            {/* Timer — right of avatar when my turn */}
-            {isMyTurn && gameState.phase === 'playing' && gameState.turnStartedAt > 0 && (
-              <TurnTimer
-                turnStartedAt={gameState.turnStartedAt}
-                turnTimeoutMs={gameState.turnTimeoutMs}
-                isMyTurn={true}
-                size={40}
-                onWarning={() => playSound('timer-tick')}
-              />
-            )}
           </div>
           <span className="text-white/70 text-xs font-medium">{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
           <PlayerHand

@@ -9,7 +9,7 @@ type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 const MAX_NAME_LENGTH = 20;
 const MAX_CHAT_LENGTH = 200;
 const TURN_TIMEOUT_MS = 30_000;
-const COOLDOWN_MS = 5_000;
+const COOLDOWN_MS = 3_000;
 const TURN_COOLDOWN_MS = 2_000;
 
 function sanitizeName(name: string): string {

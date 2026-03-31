@@ -2,7 +2,6 @@ import React from 'react';
 import type { PublicPlayer, GamePhase } from 'shared';
 import { useGameStore } from '../lib/store';
 import Avatar from './Avatar';
-import TurnTimer from './TurnTimer';
 
 interface OpponentProps {
   player: PublicPlayer;
@@ -28,10 +27,12 @@ export default function OpponentHand({
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
 
-  // Fan the card backs around the avatar top half (arc)
+  // Fan the card backs in an arc BELOW the avatar (facing the deck/center)
   const cardCount = player.cardCount;
-  const fanAngle = Math.min(cardCount * 18, 120); // wider spread
+  const fanAngle = Math.min(cardCount * 18, 120);
   const startAngle = -fanAngle / 2;
+
+  const showTimer = isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
 
   return (
     <div
@@ -43,17 +44,32 @@ export default function OpponentHand({
         zIndex: 10,
       }}
     >
-      {/* Container for avatar + cards around it */}
-      <div className="relative" style={{ width: 140, height: 120 }}>
-        {/* Cards fanned in an arc at the top of the avatar */}
+      {/* Container for avatar + cards below it */}
+      <div className="relative" style={{ width: 140, height: 140 }}>
+        {/* Avatar (upper portion) */}
+        <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: 8 }}>
+          <Avatar
+            name={player.name}
+            avatarId={player.avatarId}
+            avatarColor={player.avatarColor}
+            size="lg"
+            isCurrentTurn={isCurrentTurn}
+            isDisconnected={!player.isConnected}
+            turnStartedAt={showTimer ? turnStartedAt : undefined}
+            turnTimeoutMs={showTimer ? turnTimeoutMs : undefined}
+          />
+        </div>
+
+        {/* Cards fanned in an arc below the avatar, facing the deck */}
         {Array.from({ length: cardCount }).map((_, i) => {
           const angle = cardCount > 1
             ? startAngle + (i / (cardCount - 1)) * fanAngle
             : 0;
-          const radians = (angle - 90) * (Math.PI / 180);
-          const radius = 48;
+          // +90 makes the arc point downward (toward deck/center)
+          const radians = (angle + 90) * (Math.PI / 180);
+          const radius = 44;
           const cx = 70; // center of container
-          const cy = 52;
+          const cy = 62; // below avatar center
           const x = cx + Math.cos(radians) * radius - 20;
           const y = cy + Math.sin(radians) * radius - 30;
           return (
@@ -66,7 +82,7 @@ export default function OpponentHand({
                 left: x,
                 top: y,
                 transform: `rotate(${angle}deg)`,
-                transformOrigin: 'center bottom',
+                transformOrigin: 'center top',
                 zIndex: i,
               }}
             >
@@ -82,34 +98,11 @@ export default function OpponentHand({
             </div>
           );
         })}
-
-        {/* Avatar (centered) */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-          <Avatar
-            name={player.name}
-            avatarId={player.avatarId}
-            avatarColor={player.avatarColor}
-            size="lg"
-            isCurrentTurn={isCurrentTurn}
-            isDisconnected={!player.isConnected}
-          />
-        </div>
-
-        {/* Timer — bottom-left of avatar when it's their turn */}
-        {isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0 && (
-          <div className="absolute -bottom-2 -left-2 z-20">
-            <TurnTimer
-              turnStartedAt={turnStartedAt}
-              turnTimeoutMs={turnTimeoutMs}
-              size={32}
-            />
-          </div>
-        )}
       </div>
 
       {/* Player name and card count */}
       <div
-        className={`mt-1 px-3 py-1 rounded-full text-xs font-bold text-center whitespace-nowrap
+        className={`-mt-1 px-3 py-1 rounded-full text-xs font-bold text-center whitespace-nowrap
           ${isCurrentTurn ? 'turn-indicator' : ''}
           ${!player.isConnected ? 'opacity-50' : ''}`}
         style={{

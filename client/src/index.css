@@ -144,3 +144,23 @@ body {
 .card-drawing {
   animation: cardDraw 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+
+/* Avatar urgent pulse when timer low */
+.avatar-urgent {
+  animation: avatarPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes avatarPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Smooth turn transition */
+@keyframes turnIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-turn-in {
+  animation: turnIn 0.3s ease-out;
+}
