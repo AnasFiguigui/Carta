@@ -28,9 +28,9 @@ export default function OpponentHand({
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
 
-  // Fan the card backs
+  // Fan the card backs around the avatar top half (arc)
   const cardCount = player.cardCount;
-  const fanAngle = Math.min(cardCount * 6, 40);
+  const fanAngle = Math.min(cardCount * 18, 120); // wider spread
   const startAngle = -fanAngle / 2;
 
   return (
@@ -43,42 +43,30 @@ export default function OpponentHand({
         zIndex: 10,
       }}
     >
-      {/* Avatar + Timer row */}
-      <div className="flex items-center gap-2 mb-1">
-        <Avatar
-          name={player.name}
-          avatarId={player.avatarId}
-          avatarColor={player.avatarColor}
-          size="sm"
-          isCurrentTurn={isCurrentTurn}
-          isDisconnected={!player.isConnected}
-        />
-        {/* Show timer next to avatar when it's their turn */}
-        {isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0 && (
-          <TurnTimer
-            turnStartedAt={turnStartedAt}
-            turnTimeoutMs={turnTimeoutMs}
-            size={28}
-          />
-        )}
-      </div>
-
-      {/* Card fan */}
-      <div className="relative" style={{ width: 100, height: 70 }}>
+      {/* Container for avatar + cards around it */}
+      <div className="relative" style={{ width: 120, height: 110 }}>
+        {/* Cards fanned in an arc at the top of the avatar */}
         {Array.from({ length: cardCount }).map((_, i) => {
           const angle = cardCount > 1
             ? startAngle + (i / (cardCount - 1)) * fanAngle
             : 0;
+          const radians = (angle - 90) * (Math.PI / 180);
+          const radius = 42;
+          const cx = 60; // center of container
+          const cy = 48;
+          const x = cx + Math.cos(radians) * radius - 16;
+          const y = cy + Math.sin(radians) * radius - 24;
           return (
             <div
               key={i}
-              className="absolute left-1/2 bottom-0 opponent-card"
+              className="absolute opponent-card"
               style={{
-                width: 45,
-                height: 67,
-                marginLeft: -22.5,
+                width: 32,
+                height: 48,
+                left: x,
+                top: y,
                 transform: `rotate(${angle}deg)`,
-                transformOrigin: 'bottom center',
+                transformOrigin: 'center bottom',
                 zIndex: i,
               }}
             >
@@ -94,6 +82,29 @@ export default function OpponentHand({
             </div>
           );
         })}
+
+        {/* Avatar (centered) */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+          <Avatar
+            name={player.name}
+            avatarId={player.avatarId}
+            avatarColor={player.avatarColor}
+            size="xl"
+            isCurrentTurn={isCurrentTurn}
+            isDisconnected={!player.isConnected}
+          />
+        </div>
+
+        {/* Timer — bottom-left of avatar when it's their turn */}
+        {isCurrentTurn && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0 && (
+          <div className="absolute -bottom-2 -left-2 z-20">
+            <TurnTimer
+              turnStartedAt={turnStartedAt}
+              turnTimeoutMs={turnTimeoutMs}
+              size={32}
+            />
+          </div>
+        )}
       </div>
 
       {/* Player name and card count */}

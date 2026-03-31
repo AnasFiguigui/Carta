@@ -67,6 +67,8 @@ export default function GameBoard() {
 
   const opponents = useMemo(() => {
     if (!gameState) return [];
+    // Spectator (not in players list) sees ALL players as opponents
+    if (myPlayerIndex === -1) return gameState.players;
     const result: PublicPlayer[] = [];
     for (let i = 1; i < gameState.players.length; i++) {
       const idx = (myPlayerIndex + i) % gameState.players.length;
@@ -75,7 +77,10 @@ export default function GameBoard() {
     return result;
   }, [gameState?.players, myPlayerIndex]);
 
-  const opponentPositions = getOpponentPositions(gameState?.players.length ?? 0);
+  const isSpectator = myPlayerIndex === -1;
+  const opponentPositions = getOpponentPositions(
+    isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0)
+  );
 
   const playableCardIds = useMemo(() => {
     const ids = new Set<string>();
@@ -166,18 +171,6 @@ export default function GameBoard() {
         }`}>
           {isMyTurn ? '🎯 Your Turn!' : `${currentTurnPlayer?.name}'s turn`}
         </div>
-        {/* Timer for current player */}
-        {gameState.phase === 'playing' && gameState.turnStartedAt > 0 && (
-          <TurnTimer
-            turnStartedAt={gameState.turnStartedAt}
-            turnTimeoutMs={gameState.turnTimeoutMs}
-            isMyTurn={isMyTurn}
-            size={36}
-            onWarning={() => {
-              if (isMyTurn) playSound('timer-tick');
-            }}
-          />
-        )}
       </div>
 
       {/* Timer expired overlay */}
@@ -228,41 +221,53 @@ export default function GameBoard() {
         />
       </div>
 
-      {/* My avatar + hand (bottom center) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
-        {/* Avatar + name row */}
-        {myPlayer && (
+      {/* My avatar + hand (bottom center) — only for players */}
+      {myPlayer ? (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+          {/* Avatar row: pass button (left) + avatar + timer (right) */}
           <div className="flex items-center gap-2 mb-1">
+            {/* Pass turn button — attached left of avatar */}
+            {isMyTurn && !isChoosingWild && playableCardIds.size === 0 && gameState.pendingDrawAmount === 0 && (
+              <button
+                onClick={handlePassTurn}
+                className="px-3 py-1.5 bg-gray-700/80 hover:bg-gray-600 rounded-lg text-xs text-white
+                           border border-white/20 transition-colors shadow-lg whitespace-nowrap"
+              >
+                Pass
+              </button>
+            )}
+
             <Avatar
               name={myPlayer.name}
               avatarId={myPlayer.avatarId}
               avatarColor={myPlayer.avatarColor}
-              size="sm"
+              size="xl"
               isCurrentTurn={isMyTurn}
             />
-            <span className="text-white/70 text-xs font-medium">{myPlayer.name}</span>
-            <span className="text-white/40 text-xs">({gameState.myHand.length})</span>
-          </div>
-        )}
-        <PlayerHand
-          cards={gameState.myHand}
-          playableCardIds={playableCardIds}
-          isMyTurn={isMyTurn}
-        />
-      </div>
 
-      {/* Action buttons */}
-      {isMyTurn && !isChoosingWild && (
-        <div className="absolute bottom-48 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-          {playableCardIds.size === 0 && gameState.pendingDrawAmount === 0 && (
-            <button
-              onClick={handlePassTurn}
-              className="px-4 py-2 bg-gray-700/80 hover:bg-gray-600 rounded-lg text-sm text-white 
-                         border border-white/20 transition-colors shadow-lg"
-            >
-              Pass Turn
-            </button>
-          )}
+            {/* Timer — right of avatar when my turn */}
+            {isMyTurn && gameState.phase === 'playing' && gameState.turnStartedAt > 0 && (
+              <TurnTimer
+                turnStartedAt={gameState.turnStartedAt}
+                turnTimeoutMs={gameState.turnTimeoutMs}
+                isMyTurn={true}
+                size={40}
+                onWarning={() => playSound('timer-tick')}
+              />
+            )}
+          </div>
+          <span className="text-white/70 text-xs font-medium">{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
+          <PlayerHand
+            cards={gameState.myHand}
+            playableCardIds={playableCardIds}
+            isMyTurn={isMyTurn}
+          />
+        </div>
+      ) : (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+          <div className="px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 text-white/60 text-sm">
+            👁 Spectating
+          </div>
         </div>
       )}
 

@@ -73,6 +73,9 @@ export default function HomeScreen() {
         store.setPlayerId(res.playerId);
         store.setAvatarId(avatarId);
         store.setAvatarColor(avatarColor);
+        if ((res as any).asSpectator) {
+          store.setIsSpectator(true);
+        }
         store.setView('lobby');
       } else {
         setError(res.error || 'Failed to join room');
@@ -97,6 +100,15 @@ export default function HomeScreen() {
         <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl animate-fade-in">
           {mode === 'menu' ? (
             <div className="space-y-4">
+              {/* Avatar Picker (above name) */}
+              <AvatarPicker
+                name={playerName || '?'}
+                selectedAvatarId={avatarId}
+                selectedColor={avatarColor}
+                onSelectAvatar={setAvatarId}
+                onSelectColor={setAvatarColor}
+              />
+
               {/* Name input */}
               <div>
                 <label className="block text-xs text-white/50 mb-1">Your Name</label>
@@ -110,15 +122,6 @@ export default function HomeScreen() {
                   maxLength={20}
                 />
               </div>
-
-              {/* Avatar Picker */}
-              <AvatarPicker
-                name={playerName || '?'}
-                selectedAvatarId={avatarId}
-                selectedColor={avatarColor}
-                onSelectAvatar={setAvatarId}
-                onSelectColor={setAvatarColor}
-              />
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
@@ -152,6 +155,15 @@ export default function HomeScreen() {
               >
                 ← Back
               </button>
+
+              {/* Avatar Picker */}
+              <AvatarPicker
+                name={playerName || '?'}
+                selectedAvatarId={avatarId}
+                selectedColor={avatarColor}
+                onSelectAvatar={setAvatarId}
+                onSelectColor={setAvatarColor}
+              />
 
               {/* Name input (shown in join mode so link users can enter their name) */}
               <div>
