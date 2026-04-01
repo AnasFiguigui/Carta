@@ -18,7 +18,7 @@ export default function SuitSelector({ onClose }: SuitSelectorProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in">
       <div className="bg-gray-900/95 border border-[#6E13E7]/50 rounded-2xl p-8 shadow-2xl animate-bounce-in">
-        <h2 className="text-xl font-bold text-center text-white mb-6">
+        <h2 className="text-xl font-bold text-center text-white mb-6 font-heading">
           Choose a Suit
         </h2>
         <div className="grid grid-cols-2 gap-4">

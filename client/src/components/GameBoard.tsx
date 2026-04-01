@@ -372,7 +372,7 @@ export default function GameBoard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-fade-in">
           <div className="bg-gray-900/95 border-2 border-[#6E13E7] rounded-2xl p-10 shadow-2xl text-center animate-bounce-in max-w-sm w-full mx-4">
             <div className="text-5xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-white mb-2">Game Over!</h2>
+            <h2 className="text-3xl font-bold text-white mb-2 font-heading">Game Over!</h2>
 
             {/* Winner */}
             {gameState.winnerId && (
@@ -473,7 +473,7 @@ export default function GameBoard() {
             className="relative bg-gray-900/95 border border-[#6E13E7]/50 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">📖 Carta Rules</h2>
+              <h2 className="text-2xl font-bold text-white font-heading">📖 Carta Rules</h2>
               <button
                 onClick={() => setShowRules(false)}
                 className="text-white/50 hover:text-white text-xl transition-colors"

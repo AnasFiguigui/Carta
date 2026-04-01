@@ -70,7 +70,7 @@ export default function Lobby() {
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                className="text-4xl font-bold text-white tracking-widest cursor-pointer hover:text-white/80 transition-colors"
+                className="text-4xl font-bold text-white tracking-widest cursor-pointer hover:text-white/80 transition-colors font-heading"
                 onClick={copyRoomCode}
                 title="Click to copy"
               >

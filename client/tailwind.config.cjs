@@ -13,7 +13,8 @@ module.exports = {
         'felt-light': '#0a0020',
       },
       fontFamily: {
-        game: ['Segoe UI', 'system-ui', 'sans-serif'],
+        game: ['Fira Sans', 'system-ui', 'sans-serif'],
+        heading: ['Montserrat', 'system-ui', 'sans-serif'],
       },
       animation: {
         'slide-up': 'slideUp 0.3s ease-out forwards',
