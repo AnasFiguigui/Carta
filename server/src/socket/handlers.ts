@@ -842,28 +842,27 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     socket.on('chat-message', (data) => {
       if (isRateLimited(socket)) return;
       if (!data || typeof data.message !== 'string') return;
-      const mapping = roomManager.getMapping(socket.id);
-      const specMapping = roomManager.getSpectatorMapping(socket.id);
+      const message = sanitizeChat(data.message);
+      if (!message) return;
 
+      const mapping = roomManager.getMapping(socket.id);
       if (mapping) {
         const room = roomManager.getRoom(mapping.roomId);
-        if (!room) return;
-        const player = room.players.find(p => p.id === mapping.playerId);
-        if (!player) return;
-        const message = sanitizeChat(data.message);
-        if (!message) return;
+        const player = room?.players.find(p => p.id === mapping.playerId);
+        if (!room || !player) return;
         io.to(mapping.roomId).emit('chat-message', {
           playerId: mapping.playerId,
           playerName: player.name,
           message,
         });
-      } else if (specMapping) {
+        return;
+      }
+
+      const specMapping = roomManager.getSpectatorMapping(socket.id);
+      if (specMapping) {
         const room = roomManager.getRoom(specMapping.roomId);
-        if (!room) return;
-        const spectator = room.spectators.find(s => s.id === specMapping.spectatorId);
-        if (!spectator) return;
-        const message = sanitizeChat(data.message);
-        if (!message) return;
+        const spectator = room?.spectators.find(s => s.id === specMapping.spectatorId);
+        if (!room || !spectator) return;
         io.to(specMapping.roomId).emit('chat-message', {
           playerId: specMapping.spectatorId,
           playerName: `👁 ${spectator.name}`,

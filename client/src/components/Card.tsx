@@ -23,6 +23,13 @@ function getCardImagePath(card: CardType): string {
   return `/cards/${card.value}${card.suit}.webp`;
 }
 
+const EFFECT_FONT_SIZES: Record<string, number> = { sm: 7, md: 9, lg: 11 };
+const EFFECT_COLORS: Record<string, string> = {
+  draw_two: '#e74c3c',
+  draw_five: '#e74c3c',
+  skip: '#e67e22',
+};
+
 export default function Card({
   card,
   isPlayable = false,
@@ -32,9 +39,9 @@ export default function Card({
   style,
   className = '',
   animDelay = 0,
-}: CardProps) {
+}: Readonly<CardProps>) {
   // Skip hover tracking on touch devices (no mouseenter on tap)
-  const isTouchDevice = typeof globalThis.window !== 'undefined' && 'ontouchstart' in globalThis;
+  const isTouchDevice = globalThis.window !== undefined && 'ontouchstart' in globalThis;
   const [isHovered, setIsHovered] = useState(false);
   const handleMouseEnter = useCallback(() => { if (!isTouchDevice) setIsHovered(true); }, [isTouchDevice]);
   const handleMouseLeave = useCallback(() => { if (!isTouchDevice) setIsHovered(false); }, [isTouchDevice]);
@@ -43,16 +50,23 @@ export default function Card({
   const effectLabel = EFFECT_LABELS[effect];
   const isSpecial = effect !== 'none';
 
+  const hoverTransform = isHovered && !isFaceDown
+    ? 'translateY(-15px) rotateX(5deg) scale(1.08)'
+    : 'translateY(0) rotateX(0) scale(1)';
+
+  const faceBoxShadow = isPlayable
+    ? '0 0 12px rgba(255, 215, 0, 0.5), 0 4px 12px rgba(0,0,0,0.2)'
+    : '0 4px 8px rgba(0,0,0,0.2)';
+
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className={`relative cursor-pointer select-none card-3d ${isPlayable ? 'card-playable' : ''} ${className}`}
       style={{
         width: w,
         height: h,
         transformStyle: 'preserve-3d',
-        transform: isHovered && !isFaceDown
-          ? 'translateY(-15px) rotateX(5deg) scale(1.08)'
-          : 'translateY(0) rotateX(0) scale(1)',
+        transform: hoverTransform,
         transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease',
         animationDelay: `${animDelay}ms`,
         ...style,
@@ -65,9 +79,7 @@ export default function Card({
         /* Card Back */
         <div
           className="absolute inset-0 rounded-lg overflow-hidden"
-          style={{
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-          }}
+          style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }}
         >
           <img
             src="/cards/back.webp"
@@ -84,9 +96,7 @@ export default function Card({
             borderColor: isPlayable ? '#FFD700' : 'transparent',
             borderWidth: isPlayable ? 2 : 0,
             borderStyle: 'solid',
-            boxShadow: isPlayable
-              ? '0 0 12px rgba(255, 215, 0, 0.5), 0 4px 12px rgba(0,0,0,0.2)'
-              : '0 4px 8px rgba(0,0,0,0.2)',
+            boxShadow: faceBoxShadow,
           }}
         >
           <img
@@ -101,12 +111,8 @@ export default function Card({
             <div
               className="absolute top-1 right-1 px-1 rounded text-white font-bold"
               style={{
-                fontSize: size === 'sm' ? 7 : size === 'md' ? 9 : 11,
-                background: effect === 'draw_two' || effect === 'draw_five'
-                  ? '#e74c3c'
-                  : effect === 'skip'
-                  ? '#e67e22'
-                  : '#9b59b6',
+                fontSize: EFFECT_FONT_SIZES[size],
+                background: EFFECT_COLORS[effect] ?? '#9b59b6',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
               }}
             >

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Suit } from 'shared';
 import type { Card as CardType } from 'shared';
 import Card from './Card';
 import { useGameStore } from '../lib/store';
@@ -134,9 +133,9 @@ export default function CenterArea({
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 animate-bounce-in">
             <div
               className="px-3 py-1 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1 whitespace-nowrap"
-              style={{ background: SUIT_COLORS[gameState.forcedSuit as Suit] + 'dd' }}
+              style={{ background: SUIT_COLORS[gameState.forcedSuit] + 'dd' }}
             >
-              <img src={SUIT_ICONS[gameState.forcedSuit as Suit]} alt="" className="w-4 h-4 object-contain shrink-0" />
+              <img src={SUIT_ICONS[gameState.forcedSuit]} alt="" className="w-4 h-4 object-contain shrink-0" />
               {gameState.forcedSuit}
             </div>
           </div>

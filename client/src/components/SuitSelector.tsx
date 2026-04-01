@@ -7,7 +7,7 @@ interface SuitSelectorProps {
   onClose?: () => void;
 }
 
-export default function SuitSelector({ onClose }: SuitSelectorProps) {
+export default function SuitSelector({ onClose }: Readonly<SuitSelectorProps>) {
   const suits = Object.values(Suit);
 
   const handleSelect = (suit: Suit) => {

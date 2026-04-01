@@ -359,18 +359,21 @@ export default function GameBoard() {
       </div>
 
       {/* Card animation overlay (local player only) */}
-      {cardAnimationType && animatingCard && (
+      {cardAnimationType && animatingCard && (() => {
+        const playLeft = `calc(50% + ${isMobile ? 40 : 80}px)`;
+        const drawTop = isMobile ? '42%' : '50%';
+        const playTop = `calc(100% - ${isMobile ? 120 : 180}px)`;
+        const isDrawAnim = cardAnimationType === 'draw';
+        return (
         <div
           className="fixed inset-0 z-40 pointer-events-none"
           key={`${cardAnimationType}-${animatingCard.id}`}
         >
           <div
-            className={`absolute ${
-              cardAnimationType === 'draw' ? 'card-anim-draw' : 'card-anim-play'
-            }`}
+            className={`absolute ${isDrawAnim ? 'card-anim-draw' : 'card-anim-play'}`}
             style={{
-              left: cardAnimationType === 'play' ? `calc(50% + ${isMobile ? 40 : 80}px)` : '50%',
-              top: cardAnimationType === 'draw' ? (isMobile ? '42%' : '50%') : `calc(100% - ${isMobile ? 120 : 180}px)`,
+              left: isDrawAnim ? '50%' : playLeft,
+              top: isDrawAnim ? drawTop : playTop,
               transform: 'translate(-50%, -50%)',
             }}
           >
@@ -383,7 +386,8 @@ export default function GameBoard() {
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* My avatar + hand (bottom center) — only for players */}
       {myPlayer ? (

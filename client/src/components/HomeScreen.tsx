@@ -238,11 +238,11 @@ export default function HomeScreen() {
           <h1 className="text-6xl font-bold text-white mb-2 flex items-center justify-center gap-3 font-heading" style={{
             textShadow: '0 0 30px rgba(110,19,231,0.3), 0 4px 8px rgba(0,0,0,0.5)',
           }}>
-            <img src="/favicon.svg" alt="" className="w-14 h-14" />
+            <img src="/favicon.svg" alt="" className="w-14 h-14" />{' '}
             Carta
           </h1>
-          <p className="text-white/60 text-sm">Moroccan Card Game • UNO-Style</p>
-          <p className="text-white/40 text-xs mt-1" dir="rtl">لعبة الورق المغربية</p>
+          <p className="text-white/60 text-sm">Moroccan Card Games • UNO-Style</p>
+          <p className="text-white/40 text-xs mt-1" dir="rtl">طبق زروط</p>
         </div>
 
         <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl animate-fade-in">

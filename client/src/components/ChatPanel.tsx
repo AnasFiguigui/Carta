@@ -25,8 +25,8 @@ export default function ChatPanel() {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 chat-scroll space-y-1" style={{ maxHeight: 250 }}>
-        {messages.map((msg, i) => (
-          <div key={i} className={`text-xs ${msg.isSystem ? 'text-[#6E13E7]/70 italic' : 'text-white/90'}`}>
+        {messages.map((msg) => (
+          <div key={`${msg.timestamp}-${msg.playerId}`} className={`text-xs ${msg.isSystem ? 'text-[#6E13E7]/70 italic' : 'text-white/90'}`}>
             {!msg.isSystem && (
               <span className="font-bold text-[#6E13E7] mr-1">{msg.playerName}:</span>
             )}
