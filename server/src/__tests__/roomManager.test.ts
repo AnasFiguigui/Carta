@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { RoomManager } from '../rooms/roomManager';
 import { GamePhase } from 'shared';
 
+/** Helper: createRoom that asserts non-null (tests run well under MAX_ROOMS) */
+function createRoom(rm: RoomManager, socketId: string, name: string, avatarId?: string, avatarColor?: string) {
+  const result = rm.createRoom(socketId, name, avatarId as never, avatarColor);
+  expect(result).not.toBeNull();
+  return result!;
+}
+
 describe('RoomManager', () => {
   let rm: RoomManager;
 
@@ -11,7 +18,7 @@ describe('RoomManager', () => {
 
   describe('createRoom', () => {
     it('creates a room and returns room + playerId', () => {
-      const { room, playerId } = rm.createRoom('socket-1', 'Alice');
+      const { room, playerId } = createRoom(rm, 'socket-1', 'Alice');
       expect(room.id).toHaveLength(5);
       expect(room.hostId).toBe(playerId);
       expect(room.players).toHaveLength(1);
@@ -19,18 +26,18 @@ describe('RoomManager', () => {
     });
 
     it('sets default avatar', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       expect(room.players[0].avatarId).toBe('default');
     });
 
     it('uses custom avatar if provided', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice', 'knight', '#FF0000');
+      const { room } = createRoom(rm, 'socket-1', 'Alice', 'knight', '#FF0000');
       expect(room.players[0].avatarId).toBe('knight');
       expect(room.players[0].avatarColor).toBe('#FF0000');
     });
 
     it('maps socket to room and player', () => {
-      const { room, playerId } = rm.createRoom('socket-1', 'Alice');
+      const { room, playerId } = createRoom(rm, 'socket-1', 'Alice');
       const mapping = rm.getMapping('socket-1');
       expect(mapping).toEqual({ roomId: room.id, playerId });
     });
@@ -38,7 +45,7 @@ describe('RoomManager', () => {
 
   describe('joinRoom', () => {
     it('allows joining an existing room', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       const result = rm.joinRoom('socket-2', room.id, 'Bob');
       expect(result.success).toBe(true);
       expect(result.room?.players).toHaveLength(2);
@@ -51,20 +58,20 @@ describe('RoomManager', () => {
     });
 
     it('rejects duplicate names', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       const result = rm.joinRoom('socket-2', room.id, 'alice'); // case-insensitive
       expect(result.success).toBe(false);
       expect(result.error).toBe('Name already taken in this room');
     });
 
     it('is case-insensitive for room code', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       const result = rm.joinRoom('socket-2', room.id.toLowerCase(), 'Bob');
       expect(result.success).toBe(true);
     });
 
     it('joins as spectator when room is full', () => {
-      const { room } = rm.createRoom('socket-1', 'P1');
+      const { room } = createRoom(rm, 'socket-1', 'P1');
       for (let i = 2; i <= 6; i++) {
         rm.joinRoom(`socket-${i}`, room.id, `P${i}`);
       }
@@ -77,7 +84,7 @@ describe('RoomManager', () => {
 
   describe('leaveRoom', () => {
     it('removes player from lobby', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       const result = rm.leaveRoom('socket-2');
       expect(result).not.toBeNull();
@@ -85,13 +92,13 @@ describe('RoomManager', () => {
     });
 
     it('deletes room when last player leaves', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.leaveRoom('socket-1');
       expect(rm.getRoom(room.id)).toBeUndefined();
     });
 
     it('reassigns host when host leaves', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       const result = rm.leaveRoom('socket-1');
       expect(result).not.toBeNull();
@@ -107,7 +114,7 @@ describe('RoomManager', () => {
 
   describe('toggleReady', () => {
     it('toggles player ready state', () => {
-      rm.createRoom('socket-1', 'Alice');
+      createRoom(rm, 'socket-1', 'Alice');
       const result1 = rm.toggleReady('socket-1');
       expect(result1?.player.isReady).toBe(true);
       const result2 = rm.toggleReady('socket-1');
@@ -121,7 +128,7 @@ describe('RoomManager', () => {
 
   describe('startGame', () => {
     it('starts game when host and enough players who are ready', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       // Bob needs to be ready
       rm.toggleReady('socket-2');
@@ -131,7 +138,7 @@ describe('RoomManager', () => {
     });
 
     it('rejects if not the host', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       const result = rm.startGame('socket-2');
       expect(result.success).toBe(false);
@@ -139,14 +146,14 @@ describe('RoomManager', () => {
     });
 
     it('rejects with fewer than 2 players', () => {
-      rm.createRoom('socket-1', 'Alice');
+      createRoom(rm, 'socket-1', 'Alice');
       const result = rm.startGame('socket-1');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Need at least 2 players');
     });
 
     it('rejects if not all players ready', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       // Bob is not ready
       const result = rm.startGame('socket-1');
@@ -157,7 +164,7 @@ describe('RoomManager', () => {
 
   describe('getRoomInfo', () => {
     it('returns room info without full player data', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       const info = rm.getRoomInfo(room);
       expect(info.id).toBe(room.id);
       expect(info.playerCount).toBe(1);
@@ -170,19 +177,19 @@ describe('RoomManager', () => {
 
   describe('getSocketIdForPlayer', () => {
     it('finds socket for known player', () => {
-      const { room, playerId } = rm.createRoom('socket-1', 'Alice');
+      const { room, playerId } = createRoom(rm, 'socket-1', 'Alice');
       expect(rm.getSocketIdForPlayer(room.id, playerId)).toBe('socket-1');
     });
 
     it('returns undefined for unknown player', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       expect(rm.getSocketIdForPlayer(room.id, 'fake-id')).toBeUndefined();
     });
   });
 
   describe('removeRoom', () => {
     it('removes room and cleans up mappings', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.removeRoom(room.id);
       expect(rm.getRoom(room.id)).toBeUndefined();
       expect(rm.getMapping('socket-1')).toBeUndefined();
@@ -191,7 +198,7 @@ describe('RoomManager', () => {
 
   describe('spectator flow', () => {
     it('spectator can be promoted to player', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       // Fill the room to force spectator
       for (let i = 2; i <= 6; i++) {
         rm.joinRoom(`socket-${i}`, room.id, `P${i}`);
@@ -211,7 +218,7 @@ describe('RoomManager', () => {
 
   describe('kickDisconnectedPlayer', () => {
     it('kicks a player during active game', () => {
-      const { room } = rm.createRoom('socket-1', 'Alice');
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
       rm.joinRoom('socket-2', room.id, 'Bob');
       rm.toggleReady('socket-2');
       rm.startGame('socket-1');

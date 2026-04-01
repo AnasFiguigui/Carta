@@ -577,7 +577,7 @@ export default function GameBoard() {
                 <h3 className="text-white font-bold mb-1">⚡ Special Cards</h3>
                 <div className="space-y-2 ml-2">
                   <p><span className="text-red-400 font-bold">2s → +2</span> — Next player draws 2 cards (stackable with another 2)</p>
-                  <p><span className="text-red-400 font-bold">1 of Coins → +5</span> — Next player draws 5 cards (stackable with 2s)</p>
+                  <p><span className="text-red-400 font-bold">1 of Coins → +5</span> — Next player draws 5 cards (stackable with 2 of Coins only)</p>
                   <p><span className="text-orange-400 font-bold">10s → Skip</span> — Skip the next player's turn</p>
                   <p><span className="text-purple-400 font-bold">7s → Wild</span> — Choose any suit for the next player to follow</p>
                 </div>
@@ -591,7 +591,7 @@ export default function GameBoard() {
               <div>
                 <h3 className="text-white font-bold mb-1">📌 Key Rules</h3>
                 <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>Draw penalties stack — a +2 can be answered with another +2 or +5</li>
+                  <li>Draw penalties stack — a +2 can be answered with another +2, and +5 only with 2 of Coins</li>
                   <li>If you can't play or stack, you must draw the full penalty</li>
                   <li>After drawing, if you have playable cards you may pass your turn</li>
                   <li>Passing without drawing first will automatically draw a card for you</li>

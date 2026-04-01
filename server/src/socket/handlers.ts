@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { Suit, ClientToServerEvents, ServerToClientEvents, SoundType, GamePhase } from 'shared';
+import { Suit, AVATAR_IDS, AvatarId, ClientToServerEvents, ServerToClientEvents, SoundType, GamePhase } from 'shared';
 import { RoomManager } from '../rooms/roomManager';
 import { GameEngine } from '../game/engine';
 
@@ -30,6 +30,13 @@ function sanitizeAvatarColor(color: string | undefined): string {
   return '#3B82F6'; // default blue
 }
 
+function sanitizeAvatarId(id: unknown): AvatarId {
+  if (typeof id === 'string' && (AVATAR_IDS as readonly string[]).includes(id)) {
+    return id as AvatarId;
+  }
+  return 'default';
+}
+
 function sanitizeRoomCode(code: string): string {
   return code.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 5);
 }
@@ -39,15 +46,16 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
   const turnTimers: Map<string, NodeJS.Timeout> = new Map();
   /** Disconnect kick timers: playerId → timeout */
   const disconnectKickTimers: Map<string, NodeJS.Timeout> = new Map();
-  /** Per-socket rate limiting: socketId → { count, windowStart } */
+  /** Per-IP rate limiting */
   const rateLimits: Map<string, { count: number; windowStart: number }> = new Map();
 
-  function isRateLimited(socketId: string): boolean {
+  function isRateLimited(socket: TypedSocket): boolean {
+    const ip = socket.handshake.address;
     const now = Date.now();
-    let entry = rateLimits.get(socketId);
+    let entry = rateLimits.get(ip);
     if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
       entry = { count: 1, windowStart: now };
-      rateLimits.set(socketId, entry);
+      rateLimits.set(ip, entry);
       return false;
     }
     entry.count++;
@@ -69,9 +77,9 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
       }
     }
     // Clean up stale rate limit entries
-    for (const [sid, entry] of rateLimits) {
+    for (const [ip, entry] of rateLimits) {
       if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS * 10) {
-        rateLimits.delete(sid);
+        rateLimits.delete(ip);
       }
     }
   }, 5 * 60 * 1000); // every 5 minutes
@@ -277,14 +285,21 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== CREATE ROOM =====
     socket.on('create-room', (data, cb) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.playerName !== 'string' || typeof cb !== 'function') return;
       const name = sanitizeName(data.playerName);
       if (!name) {
         cb({ roomId: '', playerId: '' });
         return;
       }
 
-      const { room, playerId } = roomManager.createRoom(socket.id, name, data.avatarId, sanitizeAvatarColor(data.avatarColor));
+      const result = roomManager.createRoom(socket.id, name, sanitizeAvatarId(data.avatarId), sanitizeAvatarColor(data.avatarColor));
+      if (!result) {
+        cb({ roomId: '', playerId: '' });
+        return;
+      }
+
+      const { room, playerId } = result;
       socket.join(room.id);
       cb({ roomId: room.id, playerId });
 
@@ -293,7 +308,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== JOIN ROOM =====
     socket.on('join-room', (data, cb) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.playerName !== 'string' || typeof data.roomId !== 'string' || typeof cb !== 'function') return;
       const name = sanitizeName(data.playerName);
       if (!name) {
         cb({ success: false, error: 'Invalid name' });
@@ -306,7 +322,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         return;
       }
 
-      const result = roomManager.joinRoom(socket.id, roomCode, name, data.avatarId, sanitizeAvatarColor(data.avatarColor));
+      const result = roomManager.joinRoom(socket.id, roomCode, name, sanitizeAvatarId(data.avatarId), sanitizeAvatarColor(data.avatarColor));
       if (!result.success || !result.room) {
         cb({ success: false, error: result.error });
         return;
@@ -352,7 +368,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== START GAME =====
     socket.on('start-game', () => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
       const result = roomManager.startGame(socket.id);
       if (!result.success || !result.engine || !result.room) {
         socket.emit('error', { message: result.error || 'Failed to start game' });
@@ -383,7 +399,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     // ===== PLAY CARD =====
     // eslint-disable-next-line sonarjs/cognitive-complexity
     socket.on('play-card', (data) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.cardId !== 'string') return;
       const mapping = roomManager.getMapping(socket.id);
       if (!mapping) return;
 
@@ -463,7 +480,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== DRAW CARD =====
     socket.on('draw-card', () => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
       const mapping = roomManager.getMapping(socket.id);
       if (!mapping) return;
 
@@ -509,7 +526,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== CHOOSE SUIT (after playing 7) =====
     socket.on('choose-suit', (data) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.suit !== 'string') return;
       const mapping = roomManager.getMapping(socket.id);
       if (!mapping) return;
 
@@ -550,7 +568,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== PASS TURN =====
     socket.on('pass-turn', () => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
       const mapping = roomManager.getMapping(socket.id);
       if (!mapping) return;
 
@@ -658,7 +676,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     // ===== KICK PLAYER (host only) =====
     // eslint-disable-next-line sonarjs/cognitive-complexity
     socket.on('kick-player', (data) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.targetPlayerId !== 'string') return;
       const mapping = roomManager.getMapping(socket.id);
       if (!mapping) return;
 
@@ -741,7 +760,7 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== RESTART GAME (host only, post-game) =====
     socket.on('restart-game', () => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
       const result = roomManager.restartGame(socket.id);
       if (!result.success || !result.engine || !result.room) {
         socket.emit('error', { message: result.error || 'Failed to restart game' });
@@ -770,7 +789,8 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
 
     // ===== CHAT =====
     socket.on('chat-message', (data) => {
-      if (isRateLimited(socket.id)) return;
+      if (isRateLimited(socket)) return;
+      if (!data || typeof data.message !== 'string') return;
       const mapping = roomManager.getMapping(socket.id);
       const specMapping = roomManager.getSpectatorMapping(socket.id);
 
@@ -804,7 +824,6 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
     // ===== DISCONNECT =====
     socket.on('disconnect', () => {
       console.log(`Disconnected: ${socket.id}`);
-      rateLimits.delete(socket.id);
       handleLeave(socket);
     });
   });

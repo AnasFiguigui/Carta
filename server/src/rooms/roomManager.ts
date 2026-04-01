@@ -1,8 +1,11 @@
 import { Player, Room, RoomInfo, GamePhase, PublicPlayer, AvatarId, Spectator } from 'shared';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
 import { GameEngine } from '../game/engine';
 
 const MAX_PLAYERS = 6;
+const MAX_ROOMS = 500;
+const MAX_SPECTATORS_PER_ROOM = 20;
 const ROOM_CODE_LENGTH = 5;
 
 const AVATAR_COLORS = [
@@ -14,12 +17,13 @@ function randomAvatarColor(): string {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 }
 
-/** Generate a human-friendly room code */
+/** Generate a human-friendly room code using crypto */
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I,O,0,1 to avoid confusion
+  const bytes = crypto.randomBytes(ROOM_CODE_LENGTH);
   let code = '';
   for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[bytes[i] % chars.length];
   }
   return code;
 }
@@ -32,7 +36,11 @@ export class RoomManager {
   /** Maps socket ID → spectator mapping for spectators */
   private readonly spectatorSocketMap: Map<string, { roomId: string; spectatorId: string }> = new Map();
 
-  createRoom(socketId: string, playerName: string, avatarId?: AvatarId, avatarColor?: string): { room: Room; playerId: string } {
+  createRoom(socketId: string, playerName: string, avatarId?: AvatarId, avatarColor?: string): { room: Room; playerId: string } | null {
+    if (this.rooms.size >= MAX_ROOMS) {
+      return null;
+    }
+
     let roomId: string;
     do {
       roomId = generateRoomCode();
@@ -130,6 +138,10 @@ export class RoomManager {
     playerId?: string;
     asSpectator?: boolean;
   } {
+    if (room.spectators.length >= MAX_SPECTATORS_PER_ROOM) {
+      return { success: false };
+    }
+
     const spectatorId = uuidv4();
     const spectator: Spectator = {
       id: spectatorId,
