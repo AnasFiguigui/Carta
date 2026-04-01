@@ -237,6 +237,7 @@ export function isValidPlay(
   if (pendingDrawAmount > 0) {
     const topEffect = getCardEffect(topCard);
     const cardEffect = getCardEffect(card);
+    // 2s can stack on 2s. 2 of Coins can stack on 1 of Coins (+5) for +7 total.
     if (topEffect === CardEffect.DrawTwo && cardEffect === CardEffect.DrawTwo) return true;
     if (topEffect === CardEffect.DrawFive && card.value === 2 && card.suit === Suit.Coins) return true;
     return false;

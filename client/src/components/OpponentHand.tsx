@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { PublicPlayer, GamePhase } from 'shared';
 import { useGameStore } from '../lib/store';
 import { getSocket } from '../lib/socket';
@@ -53,6 +53,19 @@ export default function OpponentHand({
   const avatarSize = isMobile ? 'md' as const : 'lg' as const;
   const avatarTop = isMobile ? 4 : 8;
 
+  // Memoize card position calculations (trig) — only recompute on card count or sizing changes
+  const cardPositions = useMemo(() => {
+    return Array.from({ length: cardCount }, (_, i) => {
+      const angle = cardCount > 1
+        ? startAngle + (i / (cardCount - 1)) * fanAngle
+        : 0;
+      const radians = (angle + 90) * (Math.PI / 180);
+      const x = arcCx + Math.cos(radians) * arcRadius - cardW / 2;
+      const y = arcCy + Math.sin(radians) * arcRadius - cardH / 2;
+      return { x, y, angle };
+    });
+  }, [cardCount, startAngle, fanAngle, arcCx, arcCy, arcRadius, cardW, cardH]);
+
   const showTimer = isCurrentTurn && !isFinished && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
   const isConnected = player.isConnected;
 
@@ -73,8 +86,8 @@ export default function OpponentHand({
           <div className={`absolute left-1/2 -translate-x-1/2 -top-1 z-20 ${isMobile ? 'text-lg' : 'text-2xl'}`} style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
         )}
 
-        {/* Avatar (upper portion) */}
-        <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: avatarTop }}>
+        {/* Avatar (upper portion) — counter-rotate if container is flipped */}
+        <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: avatarTop, transform: `translateX(-50%) rotate(${-position.rotation}deg)` }}>
           <Avatar
             name={player.name}
             avatarId={player.avatarId}
@@ -88,27 +101,16 @@ export default function OpponentHand({
         </div>
 
         {/* Cards fanned in an arc below the avatar — only if not finished and not dealing */}
-        {!isFinished && !isDealing && Array.from({ length: cardCount }).map((_, i) => {
-          const angle = cardCount > 1
-            ? startAngle + (i / (cardCount - 1)) * fanAngle
-            : 0;
-          // +90 makes the arc point downward (toward deck/center)
-          const radians = (angle + 90) * (Math.PI / 180);
-          const radius = arcRadius;
-          const cx = arcCx;
-          const cy = arcCy;
-          const x = cx + Math.cos(radians) * radius - cardW / 2;
-          const y = cy + Math.sin(radians) * radius - cardH / 2;
-          return (
+        {!isFinished && !isDealing && cardPositions.map((pos, i) => (
             <div
               key={`${player.id}-card-back-${i}`}
-              className="absolute opponent-card"
+              className="absolute opponent-card opponent-card-shadow"
               style={{
                 width: cardW,
                 height: cardH,
-                left: x,
-                top: y,
-                transform: `rotate(${angle}deg)`,
+                left: pos.x,
+                top: pos.y,
+                transform: `rotate(${pos.angle}deg)`,
                 transformOrigin: 'center top',
                 zIndex: i,
               }}
@@ -118,13 +120,9 @@ export default function OpponentHand({
                 alt="Card back"
                 className="w-full h-full object-cover rounded"
                 draggable={false}
-                style={{
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                }}
               />
             </div>
-          );
-        })}
+          ))}
       </div>
 
       {/* Player name and card count */}

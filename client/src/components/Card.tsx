@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Card as CardType } from 'shared';
 import { getCardEffect, EFFECT_LABELS } from '../lib/cardUtils';
 
@@ -33,7 +33,11 @@ export default function Card({
   className = '',
   animDelay = 0,
 }: CardProps) {
+  // Skip hover tracking on touch devices (no mouseenter on tap)
+  const isTouchDevice = typeof globalThis.window !== 'undefined' && 'ontouchstart' in globalThis;
   const [isHovered, setIsHovered] = useState(false);
+  const handleMouseEnter = useCallback(() => { if (!isTouchDevice) setIsHovered(true); }, [isTouchDevice]);
+  const handleMouseLeave = useCallback(() => { if (!isTouchDevice) setIsHovered(false); }, [isTouchDevice]);
   const { w, h } = SIZES[size];
   const effect = getCardEffect(card);
   const effectLabel = EFFECT_LABELS[effect];
@@ -54,8 +58,8 @@ export default function Card({
         ...style,
       }}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {isFaceDown ? (
         /* Card Back */

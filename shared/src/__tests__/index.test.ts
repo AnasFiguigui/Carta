@@ -103,7 +103,7 @@ describe('isValidPlay', () => {
       expect(isValidPlay(card(Suit.Cups, 5), topDraw2, null, 2)).toBe(false);
     });
 
-    it('allows 2 of Coins on top of 1 of Coins (DrawFive)', () => {
+    it('allows 2 of Coins on top of 1 of Coins (DrawFive) for +7 total', () => {
       const topDraw5 = card(Suit.Coins, 1);
       expect(isValidPlay(card(Suit.Coins, 2), topDraw5, null, 5)).toBe(true);
     });

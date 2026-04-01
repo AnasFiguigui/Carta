@@ -9,10 +9,10 @@ interface PlayerHandProps {
   playableCardIds: Set<string>;
   isMyTurn: boolean;
   isDealing?: boolean;
+  isMobile?: boolean;
 }
 
-export default function PlayerHand({ cards, playableCardIds, isMyTurn, isDealing = false }: Readonly<PlayerHandProps>) {
-  const isMobile = globalThis.innerWidth < 768;
+export default function PlayerHand({ cards, playableCardIds, isMyTurn, isDealing = false, isMobile = false }: Readonly<PlayerHandProps>) {
   const cardSize = isMobile ? 'sm' as const : 'md' as const;
   const cardW = isMobile ? 60 : 90;
 
@@ -25,7 +25,8 @@ export default function PlayerHand({ cards, playableCardIds, isMyTurn, isDealing
   };
 
   // Fan out cards with overlap - adapt to screen width
-  const maxSpread = isMobile ? Math.min(globalThis.innerWidth - 40, 350) : 700;
+  const viewportWidth = typeof globalThis.innerWidth === 'number' ? globalThis.innerWidth : 768;
+  const maxSpread = isMobile ? Math.min(viewportWidth - 40, 350) : 700;
   const baseSpacing = isMobile ? 45 : 70;
   const totalWidth = Math.min(cards.length * baseSpacing, maxSpread);
   const cardSpacing = cards.length > 1 ? totalWidth / (cards.length - 1) : 0;

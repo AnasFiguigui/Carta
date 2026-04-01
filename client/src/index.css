@@ -132,6 +132,29 @@ body {
 /* Opponent card fan */
 .opponent-card {
   transition: transform 0.2s ease;
+  will-change: transform;
+}
+
+.opponent-card-shadow img {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Prevent sticky :hover on touch devices */
+@media (hover: none) {
+  .card-3d:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .card-3d.card-playable:hover {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  }
+  .deck-pile:hover {
+    transform: none;
+  }
+  .suit-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 /* Play animation class */

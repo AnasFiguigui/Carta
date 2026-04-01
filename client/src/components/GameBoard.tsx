@@ -149,9 +149,12 @@ export default function GameBoard() {
 
   // For game-over overlay, use the store flag which updates in real-time
   const isSpectatorForOverlay = isGameOver ? storeIsSpectator : isSpectator;
-  const opponentPositions = getOpponentPositions(
-    isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0),
-    isMobile
+  const opponentPositions = useMemo(
+    () => getOpponentPositions(
+      isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0),
+      isMobile
+    ),
+    [isSpectator, gameState?.players.length, isMobile]
   );
 
   const playableCardIds = useMemo(() => {
@@ -407,8 +410,7 @@ export default function GameBoard() {
               cards={gameState.myHand}
               playableCardIds={playableCardIds}
               isMyTurn={isMyTurn}
-              isDealing={isDealing}
-            />
+              isDealing={isDealing}              isMobile={isMobile}            />
           )}
         </div>
       ) : (
