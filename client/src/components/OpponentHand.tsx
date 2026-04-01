@@ -16,6 +16,8 @@ interface OpponentProps {
   isFinished?: boolean;
   isKicked?: boolean;
   isHost?: boolean;
+  isDealing?: boolean;
+  isMobile?: boolean;
 }
 
 export default function OpponentHand({
@@ -30,14 +32,26 @@ export default function OpponentHand({
   isFinished = false,
   isKicked = false,
   isHost = false,
+  isDealing = false,
+  isMobile = false,
 }: Readonly<OpponentProps>) {
   const activeEffect = useGameStore((s) => s.activeEffect);
   const isTarget = activeEffect?.targetId === player.id;
 
-  // Fan the card backs in an arc BELOW the avatar (facing the deck/center)
+  // Fan the card backs in an arc (facing the deck/center)
   const cardCount = player.cardCount;
-  const fanAngle = Math.min(cardCount * 18, 120);
+  const fanAngle = Math.min(cardCount * (isMobile ? 14 : 18), isMobile ? 90 : 120);
   const startAngle = -fanAngle / 2;
+
+  // Mobile: smaller container and cards
+  const containerSize = isMobile ? 80 : 140;
+  const cardW = isMobile ? 26 : 40;
+  const cardH = isMobile ? 39 : 60;
+  const arcRadius = isMobile ? 28 : 44;
+  const arcCx = containerSize / 2;
+  const arcCy = isMobile ? 40 : 62;
+  const avatarSize = isMobile ? 'md' as const : 'lg' as const;
+  const avatarTop = isMobile ? 4 : 8;
 
   const showTimer = isCurrentTurn && !isFinished && (gamePhase === 'playing' || gamePhase === 'choosing_wild_suit') && turnStartedAt > 0;
   const isConnected = player.isConnected;
@@ -53,19 +67,19 @@ export default function OpponentHand({
       }}
     >
       {/* Container for avatar + cards below it */}
-      <div className="relative" style={{ width: 140, height: 140 }}>
+      <div className="relative" style={{ width: containerSize, height: containerSize }}>
         {/* Crown for finished players */}
         {isFinished && !isKicked && (
-          <div className="absolute left-1/2 -translate-x-1/2 -top-1 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
+          <div className={`absolute left-1/2 -translate-x-1/2 -top-1 z-20 ${isMobile ? 'text-lg' : 'text-2xl'}`} style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
         )}
 
         {/* Avatar (upper portion) */}
-        <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: 8 }}>
+        <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: avatarTop }}>
           <Avatar
             name={player.name}
             avatarId={player.avatarId}
             avatarColor={player.avatarColor}
-            size="lg"
+            size={avatarSize}
             isCurrentTurn={isCurrentTurn && !isFinished}
             isDisconnected={!player.isConnected}
             turnStartedAt={showTimer ? turnStartedAt : undefined}
@@ -73,25 +87,25 @@ export default function OpponentHand({
           />
         </div>
 
-        {/* Cards fanned in an arc below the avatar — only if not finished */}
-        {!isFinished && Array.from({ length: cardCount }).map((_, i) => {
+        {/* Cards fanned in an arc below the avatar — only if not finished and not dealing */}
+        {!isFinished && !isDealing && Array.from({ length: cardCount }).map((_, i) => {
           const angle = cardCount > 1
             ? startAngle + (i / (cardCount - 1)) * fanAngle
             : 0;
           // +90 makes the arc point downward (toward deck/center)
           const radians = (angle + 90) * (Math.PI / 180);
-          const radius = 44;
-          const cx = 70; // center of container
-          const cy = 62; // below avatar center
-          const x = cx + Math.cos(radians) * radius - 20;
-          const y = cy + Math.sin(radians) * radius - 30;
+          const radius = arcRadius;
+          const cx = arcCx;
+          const cy = arcCy;
+          const x = cx + Math.cos(radians) * radius - cardW / 2;
+          const y = cy + Math.sin(radians) * radius - cardH / 2;
           return (
             <div
               key={`${player.id}-card-back-${i}`}
               className="absolute opponent-card"
               style={{
-                width: 40,
-                height: 60,
+                width: cardW,
+                height: cardH,
                 left: x,
                 top: y,
                 transform: `rotate(${angle}deg)`,
@@ -115,7 +129,8 @@ export default function OpponentHand({
 
       {/* Player name and card count */}
       <div
-        className={`-mt-1 px-3 py-1 rounded-full text-xs font-bold text-center whitespace-nowrap
+        className={`px-2 py-0.5 rounded-full font-bold text-center whitespace-nowrap
+          ${isMobile ? 'text-[10px] mt-2' : 'text-xs mt-1'}
           ${isCurrentTurn ? 'turn-indicator' : ''}
           ${isConnected ? '' : 'opacity-50'}`}
         style={{

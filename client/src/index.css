@@ -203,3 +203,35 @@ body {
 .card-anim-play {
   animation: cardAnimPlay 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+
+/* Dealing animation: card flies from center to player position */
+@keyframes deal-to-player {
+  0% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(
+      calc(var(--deal-x) - 50vw),
+      calc(var(--deal-y) - 50vh)
+    ) scale(0.7) rotate(10deg);
+    opacity: 0;
+  }
+}
+
+/* Card flip-reveal after dealing ends */
+@keyframes flipReveal {
+  0% {
+    transform: rotateY(180deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+.deal-flip-reveal {
+  animation: flipReveal 0.4s ease-out both;
+}

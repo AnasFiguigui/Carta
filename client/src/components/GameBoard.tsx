@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '../lib/store';
 import { getSocket } from '../lib/socket';
 import type { PublicPlayer } from 'shared';
@@ -10,6 +10,7 @@ import SuitSelector from './SuitSelector';
 import ChatPanel from './ChatPanel';
 import Avatar from './Avatar';
 import Card from './Card';
+import DealingOverlay from './DealingOverlay';
 import { playSound } from '../lib/sounds';
 
 /** Detect mobile via viewport width */
@@ -25,10 +26,43 @@ function useIsMobile() {
 
 /** Calculate opponent positions around the table based on player count */
 function getOpponentPositions(
-  totalPlayers: number
+  totalPlayers: number,
+  isMobile: boolean
 ): { x: number; y: number; rotation: number }[] {
   const others = totalPlayers - 1;
   if (others === 0) return [];
+
+  if (isMobile) {
+    // Layout: symmetric around deck center (50%)
+    // Top row ~8%, bottom row ~72%, sides at deck level
+    // Symmetric layout: top sides at y:28 mirror bottom at y:72 around deck at y:50
+    const mobileLayouts: Record<number, { x: number; y: number; rotation: number }[]> = {
+      1: [{ x: 50, y: 8, rotation: 0 }],
+      2: [
+        { x: 20, y: 28, rotation: 0 },
+        { x: 80, y: 28, rotation: 0 },
+      ],
+      3: [
+        { x: 20, y: 28, rotation: 0 },
+        { x: 50, y: 8, rotation: 0 },
+        { x: 80, y: 28, rotation: 0 },
+      ],
+      4: [
+        { x: 20, y: 28, rotation: 0 },
+        { x: 50, y: 8, rotation: 0 },
+        { x: 80, y: 28, rotation: 0 },
+        { x: 50, y: 72, rotation: 180 },
+      ],
+      5: [
+        { x: 20, y: 28, rotation: 0 },
+        { x: 50, y: 8, rotation: 0 },
+        { x: 80, y: 28, rotation: 0 },
+        { x: 20, y: 72, rotation: 180 },
+        { x: 80, y: 72, rotation: 180 },
+      ],
+    };
+    return mobileLayouts[others] || mobileLayouts[5];
+  }
 
   const layouts: Record<number, { x: number; y: number; rotation: number }[]> = {
     1: [{ x: 50, y: 8, rotation: 0 }],
@@ -49,9 +83,9 @@ function getOpponentPositions(
     ],
     5: [
       { x: 8, y: 50, rotation: 0 },
-      { x: 20, y: 12, rotation: 0 },
-      { x: 50, y: 5, rotation: 0 },
-      { x: 80, y: 12, rotation: 0 },
+      { x: 20, y: 15, rotation: 0 },
+      { x: 50, y: 10, rotation: 0 },
+      { x: 80, y: 15, rotation: 0 },
       { x: 92, y: 50, rotation: 0 },
     ],
   };
@@ -71,6 +105,8 @@ export default function GameBoard() {
   const [showChat, setShowChat] = useState(false);
   const [showSpectators, setShowSpectators] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isDealing, setIsDealing] = useState(false);
+  const prevPhaseRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
   const chatMessages = useGameStore((s) => s.chatMessages);
   const hostId = useGameStore((s) => s.hostId);
@@ -97,10 +133,25 @@ export default function GameBoard() {
   }, [gameState?.players, myPlayerIndex]);
 
   const isSpectator = myPlayerIndex === -1;
+
+  // Detect game start (phase transitions to 'playing') and trigger dealing animation
+  useEffect(() => {
+    const currentPhase = gameState?.phase ?? null;
+    if (prevPhaseRef.current !== 'playing' && currentPhase === 'playing') {
+      setIsDealing(true);
+    }
+    prevPhaseRef.current = currentPhase;
+  }, [gameState?.phase]);
+
+  const handleDealingComplete = useCallback(() => {
+    setIsDealing(false);
+  }, []);
+
   // For game-over overlay, use the store flag which updates in real-time
   const isSpectatorForOverlay = isGameOver ? storeIsSpectator : isSpectator;
   const opponentPositions = getOpponentPositions(
-    isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0)
+    isSpectator ? (gameState?.players.length ?? 0) + 1 : (gameState?.players.length ?? 0),
+    isMobile
   );
 
   const playableCardIds = useMemo(() => {
@@ -279,11 +330,13 @@ export default function GameBoard() {
           isFinished={gameState.finishedPlayerIds?.includes(opponent.id) ?? false}
           isKicked={gameState.kickedPlayerIds?.includes(opponent.id) ?? false}
           isHost={isHost}
+          isDealing={isDealing}
+          isMobile={isMobile}
         />
       ))}
 
       {/* Center area (deck + discard) */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+      <div className={`absolute left-1/2 -translate-x-1/2 z-10 top-1/2 -translate-y-1/2`}>
         <CenterArea
           topCard={gameState.topCard}
           deckCount={gameState.deckCount}
@@ -292,6 +345,7 @@ export default function GameBoard() {
           pendingDrawAmount={gameState.pendingDrawAmount}
           currentPlayerId={currentTurnPlayer?.id}
           myPlayerId={playerId}
+          isMobile={isMobile}
         />
       </div>
 
@@ -306,8 +360,8 @@ export default function GameBoard() {
               cardAnimationType === 'draw' ? 'card-anim-draw' : 'card-anim-play'
             }`}
             style={{
-              left: cardAnimationType === 'play' ? 'calc(50% + 80px)' : '50%',
-              top: cardAnimationType === 'draw' ? '50%' : 'calc(100% - 180px)',
+              left: cardAnimationType === 'play' ? `calc(50% + ${isMobile ? 40 : 80}px)` : '50%',
+              top: cardAnimationType === 'draw' ? (isMobile ? '42%' : '50%') : `calc(100% - ${isMobile ? 120 : 180}px)`,
               transform: 'translate(-50%, -50%)',
             }}
           >
@@ -324,19 +378,19 @@ export default function GameBoard() {
 
       {/* My avatar + hand (bottom center) — only for players */}
       {myPlayer ? (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+        <div className={`absolute left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 ${isMobile ? 'bottom-1' : 'bottom-4'}`}>
           {/* Avatar row: pass button (left) + avatar with timer ring */}
-          <div className="flex items-center gap-2 mb-1 relative">
+          <div className={`flex items-center gap-2 ${isMobile ? 'mb-0' : 'mb-1'} relative`}>
             {/* Crown for finished player */}
             {myIsFinished && !myIsKicked && (
-              <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-20 text-2xl" style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
+              <div className={`absolute left-1/2 -translate-x-1/2 -top-6 z-20 ${isMobile ? 'text-lg' : 'text-2xl'}`} style={{ filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.8))' }}>👑</div>
             )}
 
             <Avatar
               name={myPlayer.name}
               avatarId={myPlayer.avatarId}
               avatarColor={myPlayer.avatarColor}
-              size="lg"
+              size={isMobile ? 'md' : 'lg'}
               isCurrentTurn={isMyTurn && !myIsFinished}
               isDisconnected={!myPlayer.isConnected}
               showConnectionDot={true}
@@ -345,7 +399,7 @@ export default function GameBoard() {
               onTimerWarning={() => playSound('timer-tick')}
             />
           </div>
-          <span className="text-white/70 text-xs font-medium">{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
+          <span className={`text-white/70 font-medium ${isMobile ? 'text-[10px]' : 'text-xs'}`}>{myPlayer.name} <span className="text-white/40">({gameState.myHand.length})</span></span>
           {myIsFinished ? (
             <div className="text-green-400 text-sm font-bold mt-1">✅ Finished!</div>
           ) : (
@@ -353,6 +407,7 @@ export default function GameBoard() {
               cards={gameState.myHand}
               playableCardIds={playableCardIds}
               isMyTurn={isMyTurn}
+              isDealing={isDealing}
             />
           )}
         </div>
@@ -366,6 +421,24 @@ export default function GameBoard() {
 
       {/* Suit selector modal */}
       {isChoosingWild && <SuitSelector />}
+
+      {/* Dealing animation overlay */}
+      {isDealing && (
+        <DealingOverlay
+          players={[
+            // Opponents
+            ...opponents.map((opp, i) => ({
+              x: opponentPositions[i]?.x ?? 50,
+              y: opponentPositions[i]?.y ?? 10,
+              name: opp.name,
+            })),
+            // Local player (bottom center)
+            ...(myPlayer ? [{ x: 50, y: 90, name: myPlayer.name }] : []),
+          ]}
+          onComplete={handleDealingComplete}
+          cardsPerPlayer={4}
+        />
+      )}
 
       {/* Game Over overlay */}
       {isGameOver && (

@@ -8,9 +8,10 @@ interface PlayerHandProps {
   cards: CardType[];
   playableCardIds: Set<string>;
   isMyTurn: boolean;
+  isDealing?: boolean;
 }
 
-export default function PlayerHand({ cards, playableCardIds, isMyTurn }: Readonly<PlayerHandProps>) {
+export default function PlayerHand({ cards, playableCardIds, isMyTurn, isDealing = false }: Readonly<PlayerHandProps>) {
   const isMobile = globalThis.innerWidth < 768;
   const cardSize = isMobile ? 'sm' as const : 'md' as const;
   const cardW = isMobile ? 60 : 90;
@@ -50,15 +51,24 @@ export default function PlayerHand({ cards, playableCardIds, isMyTurn }: Readonl
                 transform: `rotate(${rotation}deg) translateY(${yOffset}px)`,
                 zIndex: i,
                 transition: 'left 0.3s ease, transform 0.3s ease',
+                perspective: '600px',
               }}
             >
-              <Card
-                card={card}
-                isPlayable={isPlayable}
-                onClick={() => handlePlayCard(card)}
-                size={cardSize}
-                animDelay={i * 50}
-              />
+              {isDealing ? (
+                <div style={{ width: cardW, height: isMobile ? 90 : 135 }} className="rounded-lg overflow-hidden shadow-lg">
+                  <img src="/cards/back.webp" alt="Card back" className="w-full h-full object-cover" draggable={false} />
+                </div>
+              ) : (
+                <div className="deal-flip-reveal" style={{ animationDelay: `${i * 100}ms` }}>
+                  <Card
+                    card={card}
+                    isPlayable={isPlayable}
+                    onClick={() => handlePlayCard(card)}
+                    size={cardSize}
+                    animDelay={i * 50}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
