@@ -8,9 +8,9 @@ module.exports = {
         swords: '#3498db',
         clubs: '#27ae60',
         coins: '#f1c40f',
-        felt: '#1a5c2e',
-        'felt-dark': '#0f3d1d',
-        'felt-light': '#2d7a43',
+        felt: '#060010',
+        'felt-dark': '#060010',
+        'felt-light': '#0a0020',
       },
       fontFamily: {
         game: ['Segoe UI', 'system-ui', 'sans-serif'],

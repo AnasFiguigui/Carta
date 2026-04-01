@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --felt-color: #1a5c2e;
-  --felt-dark: #0f3d1d;
+  --felt-color: #060010;
+  --felt-dark: #060010;
   --card-width: 90px;
   --card-height: 135px;
   --card-radius: 8px;
@@ -18,7 +18,7 @@
 
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: var(--felt-dark);
+  background: #060010;
   color: white;
   overflow: hidden;
   height: 100vh;
@@ -82,8 +82,7 @@ body {
 
 /* Table felt texture */
 .felt-bg {
-  background:
-    radial-gradient(ellipse at center, #2d7a43 0%, #1a5c2e 50%, #0f3d1d 100%);
+  background: #060010;
 }
 
 /* Deck pile */

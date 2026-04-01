@@ -183,7 +183,7 @@ export default function GameBoard() {
           >
             💬
             {chatMessages.length > 0 && !showChat && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#6E13E7] rounded-full" />
             )}
           </button>
         )}
@@ -242,7 +242,7 @@ export default function GameBoard() {
           }`}
           title="Click to copy room link"
         >
-          <span className="font-bold text-yellow-300">{gameState.roomId}</span>
+          <span className="font-bold text-white">{gameState.roomId}</span>
           <span className="ml-1">{copiedLink ? '✅' : '📋'}</span>
         </button>
         <button
@@ -370,9 +370,9 @@ export default function GameBoard() {
       {/* Game Over overlay */}
       {isGameOver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-fade-in">
-          <div className="bg-gray-900/95 border-2 border-yellow-500 rounded-2xl p-10 shadow-2xl text-center animate-bounce-in max-w-sm w-full mx-4">
+          <div className="bg-gray-900/95 border-2 border-[#6E13E7] rounded-2xl p-10 shadow-2xl text-center animate-bounce-in max-w-sm w-full mx-4">
             <div className="text-5xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-yellow-300 mb-2">Game Over!</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">Game Over!</h2>
 
             {/* Winner */}
             {gameState.winnerId && (
@@ -395,7 +395,7 @@ export default function GameBoard() {
                 {roomPlayers.filter(p => p.isConnected).length >= 2 ? (
                   <button
                     onClick={handleRestartGame}
-                    className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+                    className="px-6 py-3 bg-[#6E13E7] hover:bg-[#7E2BF7] text-white font-bold rounded-lg
                                transition-all shadow-lg active:scale-95"
                   >
                     🚀 Play Again
@@ -470,10 +470,10 @@ export default function GameBoard() {
             aria-label="Close rules"
           />
           <div
-            className="relative bg-gray-900/95 border border-yellow-500/50 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
+            className="relative bg-gray-900/95 border border-[#6E13E7]/50 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-yellow-300">📖 Carta Rules</h2>
+              <h2 className="text-2xl font-bold text-white">📖 Carta Rules</h2>
               <button
                 onClick={() => setShowRules(false)}
                 className="text-white/50 hover:text-white text-xl transition-colors"
@@ -484,22 +484,22 @@ export default function GameBoard() {
 
             <div className="space-y-4 text-sm text-white/80">
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">🎯 Objective</h3>
+                <h3 className="text-white font-bold mb-1">🎯 Objective</h3>
                 <p>Be the first player to get rid of all your cards!</p>
               </div>
 
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">🃏 The Deck</h3>
+                <h3 className="text-white font-bold mb-1">🃏 The Deck</h3>
                 <p>40 Spanish-suited cards across 4 suits: <strong>Coins</strong>, <strong>Cups</strong>, <strong>Swords</strong>, and <strong>Clubs</strong>. Values: 1-7, 10-12.</p>
               </div>
 
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">▶️ How to Play</h3>
+                <h3 className="text-white font-bold mb-1">▶️ How to Play</h3>
                 <p>Each player starts with <strong>4 cards</strong>. Play a card matching the top card by <strong>suit</strong> or <strong>value</strong>. If you can't play, draw a card. You have <strong>30 seconds</strong> per turn.</p>
               </div>
 
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">⚡ Special Cards</h3>
+                <h3 className="text-white font-bold mb-1">⚡ Special Cards</h3>
                 <div className="space-y-2 ml-2">
                   <p><span className="text-red-400 font-bold">2s → +2</span> — Next player draws 2 cards (stackable with another 2)</p>
                   <p><span className="text-red-400 font-bold">1 of Coins → +5</span> — Next player draws 5 cards (stackable with 2s)</p>
@@ -509,12 +509,12 @@ export default function GameBoard() {
               </div>
 
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">⏰ Timer</h3>
+                <h3 className="text-white font-bold mb-1">⏰ Timer</h3>
                 <p>30 seconds per turn. If time runs out, you automatically draw a card as penalty.</p>
               </div>
 
               <div>
-                <h3 className="text-yellow-300 font-bold mb-1">📌 Key Rules</h3>
+                <h3 className="text-white font-bold mb-1">📌 Key Rules</h3>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>Draw penalties stack — a +2 can be answered with another +2 or +5</li>
                   <li>If you can't play or stack, you must draw the full penalty</li>

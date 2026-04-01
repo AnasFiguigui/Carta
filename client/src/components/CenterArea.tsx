@@ -79,7 +79,7 @@ export default function CenterArea({
           {/* Draw indicator when it's your turn */}
           {isMyTurn && (
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce">
-              <span className="text-yellow-300 text-sm">⬇️</span>
+              <span className="text-white text-sm">⬇️</span>
             </div>
           )}
 

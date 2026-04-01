@@ -26,9 +26,9 @@ export default function ChatPanel() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 chat-scroll space-y-1" style={{ maxHeight: 250 }}>
         {messages.map((msg, i) => (
-          <div key={i} className={`text-xs ${msg.isSystem ? 'text-yellow-300/70 italic' : 'text-white/90'}`}>
+          <div key={i} className={`text-xs ${msg.isSystem ? 'text-[#6E13E7]/70 italic' : 'text-white/90'}`}>
             {!msg.isSystem && (
-              <span className="font-bold text-yellow-300 mr-1">{msg.playerName}:</span>
+              <span className="font-bold text-[#6E13E7] mr-1">{msg.playerName}:</span>
             )}
             <span>{msg.message}</span>
           </div>
@@ -48,7 +48,7 @@ export default function ChatPanel() {
           maxLength={200}
         />
         <button
-          className="px-3 text-xs text-yellow-300 hover:text-yellow-100 transition-colors"
+          className="px-3 text-xs text-[#6E13E7] hover:text-[#7E2BF7] transition-colors"
           onClick={sendMessage}
         >
           Send

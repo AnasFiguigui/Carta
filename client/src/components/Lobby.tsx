@@ -3,6 +3,7 @@ import { useGameStore } from '../lib/store';
 import { getSocket } from '../lib/socket';
 import ChatPanel from './ChatPanel';
 import Avatar from './Avatar';
+import DarkVeil from './DarkVeil';
 
 export default function Lobby() {
   const store = useGameStore();
@@ -50,8 +51,18 @@ export default function Lobby() {
   };
 
   return (
-    <div className="w-full h-screen felt-bg flex items-center justify-center">
-      <div className="max-w-lg w-full mx-4">
+    <div className="w-full h-screen flex items-center justify-center relative" style={{ background: '#060010' }}>
+      <div className="absolute inset-0">
+        <DarkVeil
+          hueShift={0}
+          noiseIntensity={0}
+          scanlineIntensity={0}
+          speed={0.5}
+          scanlineFrequency={0}
+          warpAmount={0}
+        />
+      </div>
+      <div className="max-w-lg w-full mx-4 relative z-10">
         <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl animate-fade-in">
           {/* Room header */}
           <div className="text-center mb-6">
@@ -59,7 +70,7 @@ export default function Lobby() {
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                className="text-4xl font-bold text-yellow-300 tracking-widest cursor-pointer hover:text-yellow-200 transition-colors"
+                className="text-4xl font-bold text-white tracking-widest cursor-pointer hover:text-white/80 transition-colors"
                 onClick={copyRoomCode}
                 title="Click to copy"
               >
@@ -96,7 +107,7 @@ export default function Lobby() {
                 {filledSlotIds.map((slotId, i) => (
                   <div
                     key={slotId}
-                    className={`w-2 h-2 rounded-full ${i < players.length ? 'bg-yellow-400' : 'bg-white/10'}`}
+                    className={`w-2 h-2 rounded-full ${i < players.length ? 'bg-[#6E13E7]' : 'bg-white/10'}`}
                   />
                 ))}
               </div>
@@ -118,7 +129,7 @@ export default function Lobby() {
                     <div>
                       <span className="text-white text-sm font-medium">{player.name}</span>
                       {player.id === hostId && (
-                        <span className="ml-2 text-xs text-yellow-400">👑 Host</span>
+                        <span className="ml-2 text-xs text-[#6E13E7]">👑 Host</span>
                       )}
                       {player.id === playerId && (
                         <span className="ml-2 text-xs text-white/40">(You)</span>
@@ -128,7 +139,7 @@ export default function Lobby() {
 
                   <div className="flex items-center gap-2">
                     {player.id === hostId && (
-                      <span className="text-xs text-yellow-300">Host</span>
+                      <span className="text-xs text-white/60">Host</span>
                     )}
                     {player.id !== hostId && (
                       player.isReady ? (
@@ -181,7 +192,7 @@ export default function Lobby() {
                 disabled={!canStart}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
                   ${canStart
-                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105 active:scale-95'
+                    ? 'bg-[#6E13E7] hover:bg-[#7E2BF7] text-white hover:scale-105 active:scale-95'
                     : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
               >
                 {canStart ? '🚀 Start Game' : 'Waiting for players to ready up...'}
@@ -193,7 +204,7 @@ export default function Lobby() {
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all shadow-lg
                   ${isMeReady
                     ? 'bg-green-600 hover:bg-green-500 text-white active:scale-95'
-                    : 'bg-yellow-500 hover:bg-yellow-400 text-black hover:scale-105 active:scale-95'}`}
+                    : 'bg-[#6E13E7] hover:bg-[#7E2BF7] text-white hover:scale-105 active:scale-95'}`}
               >
                 {isMeReady ? '✓ Ready!' : 'Ready Up'}
               </button>

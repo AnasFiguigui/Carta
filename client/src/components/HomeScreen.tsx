@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { connectSocket } from '../lib/socket';
 import AvatarPicker from './AvatarPicker';
+import DarkVeil from './DarkVeil';
 import type { AvatarId } from 'shared';
 
 export default function HomeScreen() {
@@ -118,7 +119,7 @@ export default function HomeScreen() {
           <input
             id="create-player-name"
             className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       border border-white/10 focus:border-[#6E13E7]/50 transition-colors
                        placeholder-white/30"
             placeholder="Enter your name..."
             value={playerName}
@@ -134,7 +135,7 @@ export default function HomeScreen() {
               setMode('create');
               handleCreate();
             }}
-            className="py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+            className="py-3 bg-[#6E13E7] hover:bg-[#7E2BF7] text-white font-bold rounded-lg
                        transition-all hover:scale-105 active:scale-95 shadow-lg"
           >
             Create Room
@@ -175,7 +176,7 @@ export default function HomeScreen() {
           <input
             id="join-player-name"
             className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       border border-white/10 focus:border-[#6E13E7]/50 transition-colors
                        placeholder-white/30"
             placeholder="Enter your name..."
             value={playerName}
@@ -189,7 +190,7 @@ export default function HomeScreen() {
           <input
             id="join-room-code"
             className="w-full bg-white/10 text-white rounded-lg px-4 py-3 outline-none
-                       border border-white/10 focus:border-yellow-500/50 transition-colors
+                       border border-white/10 focus:border-[#6E13E7]/50 transition-colors
                        placeholder-white/30 text-center text-2xl tracking-widest uppercase"
             placeholder="XXXXX"
             value={roomCode}
@@ -200,7 +201,7 @@ export default function HomeScreen() {
 
         <button
           onClick={handleJoin}
-          className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg
+          className="w-full py-3 bg-[#6E13E7] hover:bg-[#7E2BF7] text-white font-bold rounded-lg
                      transition-all hover:scale-105 active:scale-95 shadow-lg"
         >
           Join Game
@@ -217,12 +218,22 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="w-full h-screen felt-bg flex items-center justify-center">
-      <div className="max-w-md w-full mx-4">
+    <div className="w-full h-screen flex items-center justify-center relative" style={{ background: '#060010' }}>
+      <div className="absolute inset-0">
+        <DarkVeil
+          hueShift={0}
+          noiseIntensity={0}
+          scanlineIntensity={0}
+          speed={0.5}
+          scanlineFrequency={0}
+          warpAmount={0}
+        />
+      </div>
+      <div className="max-w-md w-full mx-4 relative z-10">
         {/* Title */}
         <div className="text-center mb-10 animate-slide-up">
-          <h1 className="text-6xl font-bold text-yellow-300 mb-2" style={{
-            textShadow: '0 0 30px rgba(255,215,0,0.3), 0 4px 8px rgba(0,0,0,0.5)',
+          <h1 className="text-6xl font-bold text-white mb-2" style={{
+            textShadow: '0 0 30px rgba(110,19,231,0.3), 0 4px 8px rgba(0,0,0,0.5)',
           }}>
             🃏 Carta
           </h1>
