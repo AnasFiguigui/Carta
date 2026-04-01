@@ -371,6 +371,138 @@ describe('GameEngine', () => {
     });
   });
 
+  describe('playCard — win/game-over', () => {
+    it('sets winnerId when player empties hand', () => {
+      const current = engine.getCurrentPlayer();
+      const topCard = engine.getState().topCard;
+      if (!topCard) return;
+
+      // Clear hand and add one valid card
+      current.hand = [{ suit: topCard.suit, value: 3, id: `${topCard.suit}-3-win` }];
+      current.cardCount = 1;
+
+      const result = engine.playCard(current.id, `${topCard.suit}-3-win`);
+      expect(result.success).toBe(true);
+      expect(result.playerFinished).toBe(true);
+      expect(engine.getState().winnerId).toBe(current.id);
+      expect(engine.getState().finishedPlayerIds).toContain(current.id);
+    });
+
+    it('triggers GameOver when ≤1 active player remains', () => {
+      const state = engine.getState();
+      const topCard = state.topCard;
+      if (!topCard) return;
+
+      // Finish player-1 and player-2 first
+      state.finishedPlayerIds.push('player-1', 'player-2');
+
+      // Let the current player be the remaining one
+      const remaining = state.players.find(p => !state.finishedPlayerIds.includes(p.id));
+      if (!remaining) return;
+      state.currentPlayerIndex = state.players.indexOf(remaining);
+
+      // Give them one playable card
+      remaining.hand = [{ suit: topCard.suit, value: 4, id: `${topCard.suit}-4-last` }];
+      remaining.cardCount = 1;
+
+      const result = engine.playCard(remaining.id, `${topCard.suit}-4-last`);
+      expect(result.success).toBe(true);
+      expect(result.playerFinished).toBe(true);
+      expect(engine.getState().phase).toBe(GamePhase.GameOver);
+    });
+  });
+
+  describe('playCard — DrawFive effect', () => {
+    it('adds 5 to pendingDrawAmount for 1 of Coins', () => {
+      const current = engine.getCurrentPlayer();
+      const topCard = engine.getState().topCard;
+      if (!topCard) return;
+
+      // Force top card to Coins so Coins-1 is valid
+      engine.getState().topCard = { suit: Suit.Coins, value: 5, id: 'coins-5-forced' };
+      engine.getState().discardPile.push(engine.getState().topCard!);
+
+      const draw5: Card = { suit: Suit.Coins, value: 1, id: 'coins-1-test' };
+      current.hand.push(draw5);
+      current.cardCount = current.hand.length;
+
+      const result = engine.playCard(current.id, draw5.id);
+      expect(result.success).toBe(true);
+      expect(result.effect).toBe(CardEffect.DrawFive);
+      expect(engine.getState().pendingDrawAmount).toBe(5);
+    });
+  });
+
+  describe('playCard — WildSuit auto-advance when finished', () => {
+    it('auto-advances when finished player plays a 7', () => {
+      const current = engine.getCurrentPlayer();
+      const topCard = engine.getState().topCard;
+      if (!topCard) return;
+
+      // Only card is a 7 matching top card suit
+      current.hand = [{ suit: topCard.suit, value: 7, id: `${topCard.suit}-7-finish` }];
+      current.cardCount = 1;
+
+      const result = engine.playCard(current.id, `${topCard.suit}-7-finish`);
+      expect(result.success).toBe(true);
+      expect(result.playerFinished).toBe(true);
+      // Should NOT enter ChoosingWildSuit since player finished
+      expect(engine.getState().phase).not.toBe(GamePhase.ChoosingWildSuit);
+    });
+  });
+
+  describe('chooseSuit — invalid suit', () => {
+    it('rejects invalid suit value', () => {
+      setupWildSuit(engine);
+      const current = engine.getCurrentPlayer();
+      const result = engine.chooseSuit(current.id, 'invalid' as Suit);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid suit');
+    });
+  });
+
+  describe('drawCard — double draw guard', () => {
+    it('rejects draw when hasDrawnThisTurn is true', () => {
+      const current = engine.getCurrentPlayer();
+      // Manually set the flag (normally draw advances turn, resetting it)
+      engine.getState().hasDrawnThisTurn = true;
+
+      const result = engine.drawCard(current.id);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Already drawn this turn');
+    });
+  });
+
+  describe('passTurn — after drawing', () => {
+    it('does not auto-draw if player already drew this turn', () => {
+      const current = engine.getCurrentPlayer();
+      const handBefore = current.hand.length;
+
+      // Draw first
+      engine.drawCard(current.id);
+      expect(current.hand.length).toBe(handBefore + 1);
+
+      // Pass — should NOT draw again
+      const handAfterDraw = current.hand.length;
+      engine.passTurn(current.id);
+      // Hand should stay same (passTurn doesn't draw when hasDrawnThisTurn is true)
+      expect(current.hand.length).toBe(handAfterDraw);
+    });
+  });
+
+  describe('disconnectPlayer — during ChoosingWildSuit', () => {
+    it('auto-chooses suit and advances turn', () => {
+      setupWildSuit(engine);
+      expect(engine.getState().phase).toBe(GamePhase.ChoosingWildSuit);
+
+      const current = engine.getCurrentPlayer();
+      engine.disconnectPlayer(current.id);
+
+      expect(engine.getState().phase).toBe(GamePhase.Playing);
+      expect(engine.getState().forcedSuit).not.toBeNull();
+    });
+  });
+
   describe('getConnectedActiveCount', () => {
     it('returns count of connected non-finished players', () => {
       expect(engine.getConnectedActiveCount()).toBe(3);

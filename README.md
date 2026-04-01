@@ -40,42 +40,67 @@ npm run dev
 ## Project Structure
 
 ```
-ronda/
-├── shared/            # Shared TypeScript types & interfaces
+carta/
+├── .github/workflows/
+│   └── ci.yml                # GitHub Actions CI pipeline
+├── shared/                   # Shared TypeScript types & interfaces
 │   └── src/
-│       └── index.ts
-├── server/            # Express + Socket.IO backend
+│       ├── index.ts
+│       └── __tests__/
+│           └── index.test.ts
+├── server/                   # Express + Socket.IO backend
 │   └── src/
-│       ├── index.ts          # Server entry point
+│       ├── index.ts              # Server entry point
 │       ├── game/
-│       │   ├── deck.ts       # Deck creation, shuffle, card effects
-│       │   └── engine.ts     # Authoritative game engine
+│       │   ├── deck.ts           # Deck creation, shuffle, card effects
+│       │   └── engine.ts         # Authoritative game engine
 │       ├── rooms/
-│       │   └── roomManager.ts  # Room lifecycle management
-│       └── socket/
-│           └── handlers.ts   # Socket.IO event handlers
-├── client/            # Vite + React frontend
+│       │   └── roomManager.ts    # Room lifecycle management
+│       ├── socket/
+│       │   └── handlers.ts       # Socket.IO event handlers
+│       └── __tests__/
+│           ├── deck.test.ts
+│           ├── engine.test.ts
+│           └── roomManager.test.ts
+├── client/                   # Vite + React frontend
+│   ├── public/
+│   │   ├── cards/                # Card face images (webp)
+│   │   ├── symbols/              # Suit symbol images
+│   │   └── favicon.svg
 │   └── src/
 │       ├── App.tsx
 │       ├── main.tsx
 │       ├── index.css
 │       ├── components/
-│       │   ├── Card.tsx          # Card with real images
-│       │   ├── CenterArea.tsx    # Draw & discard piles
-│       │   ├── ChatPanel.tsx     # In-game chat
-│       │   ├── GameBoard.tsx     # Main game table layout
-│       │   ├── HomeScreen.tsx    # Create / join room
-│       │   ├── Lobby.tsx         # Pre-game lobby
-│       │   ├── OpponentHand.tsx  # Other players' cards
-│       │   ├── PlayerHand.tsx    # Your hand (fan layout)
-│       │   └── SuitSelector.tsx  # Wild suit picker
-│       └── lib/
-│           ├── cardUtils.ts      # Suit symbols, colors, effect labels
-│           ├── gameLogic.ts      # Client-side play validation
-│           ├── socket.ts         # Socket.IO singleton
-│           ├── store.ts          # Zustand state management
-│           └── useSocketEvents.ts  # Socket event listeners
-└── package.json       # Monorepo root (npm workspaces)
+│       │   ├── Avatar.tsx            # Player avatar display
+│       │   ├── AvatarPicker.tsx      # Avatar selection UI
+│       │   ├── Card.tsx              # Card with real images
+│       │   ├── CenterArea.tsx        # Draw & discard piles
+│       │   ├── ChatPanel.tsx         # In-game chat
+│       │   ├── DarkVeil.tsx          # WebGL background shader
+│       │   ├── DealingOverlay.tsx    # Card dealing animation
+│       │   ├── GameBoard.tsx         # Main game table layout
+│       │   ├── HomeScreen.tsx        # Create / join room
+│       │   ├── Lobby.tsx             # Pre-game lobby
+│       │   ├── OpponentHand.tsx      # Other players' cards
+│       │   ├── PlayerHand.tsx        # Your hand (fan layout)
+│       │   ├── SpectatorPanel.tsx    # Spectator view
+│       │   ├── SuitSelector.tsx      # Wild suit picker
+│       │   └── TurnTimer.tsx         # Turn countdown timer
+│       ├── lib/
+│       │   ├── cardUtils.ts          # Suit symbols, colors, effect labels
+│       │   ├── gameLogic.ts          # Client-side play validation
+│       │   ├── socket.ts            # Socket.IO singleton
+│       │   ├── sounds.ts            # Sound effect helpers
+│       │   ├── store.ts             # Zustand state management
+│       │   └── useSocketEvents.ts   # Socket event listeners
+│       └── test/
+│           ├── setup.ts
+│           ├── cardUtils.test.ts
+│           └── store.test.ts
+├── DEPLOYMENT.md             # Deployment guide
+├── package.json              # Monorepo root (npm workspaces)
+└── README.md
 ```
 
 ## How to Play

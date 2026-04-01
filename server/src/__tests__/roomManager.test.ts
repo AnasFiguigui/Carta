@@ -9,6 +9,17 @@ function createRoom(rm: RoomManager, socketId: string, name: string, avatarId?: 
   return result!;
 }
 
+function startAndFinishGame(rm: RoomManager) {
+  const { room } = createRoom(rm, 'socket-1', 'Alice');
+  rm.joinRoom('socket-2', room.id, 'Bob');
+  rm.toggleReady('socket-2');
+  const startResult = rm.startGame('socket-1');
+  if (startResult.engine) {
+    startResult.engine.getState().phase = GamePhase.GameOver;
+  }
+  return room;
+}
+
 describe('RoomManager', () => {
   let rm: RoomManager;
 
@@ -232,6 +243,237 @@ describe('RoomManager', () => {
         const result = rm.kickDisconnectedPlayer(room.id, bob.id);
         expect(result.success).toBe(true);
       }
+    });
+  });
+
+  describe('restartGame', () => {
+    it('host can restart the game', () => {
+      startAndFinishGame(rm);
+      const result = rm.restartGame('socket-1');
+      expect(result.success).toBe(true);
+      expect(result.engine).toBeDefined();
+      expect(result.room?.gameState?.phase).toBe(GamePhase.Playing);
+    });
+
+    it('rejects non-host restart', () => {
+      startAndFinishGame(rm);
+      const result = rm.restartGame('socket-2');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Only the host can restart the game');
+    });
+
+    it('removes disconnected players on restart', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.joinRoom('socket-3', room.id, 'Charlie');
+      rm.toggleReady('socket-2');
+      rm.toggleReady('socket-3');
+      rm.startGame('socket-1');
+
+      // Disconnect Bob
+      rm.leaveRoom('socket-2');
+
+      // Force game over
+      const engine = rm.getEngine(room.id);
+      if (engine) engine.getState().phase = GamePhase.GameOver;
+
+      const result = rm.restartGame('socket-1');
+      expect(result.success).toBe(true);
+      // Bob should be removed
+      expect(result.room?.players.every(p => p.name !== 'Bob')).toBe(true);
+    });
+
+    it('fails with fewer than 2 connected players', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      // Disconnect Bob
+      rm.leaveRoom('socket-2');
+      const engine = rm.getEngine(room.id);
+      if (engine) engine.getState().phase = GamePhase.GameOver;
+
+      const result = rm.restartGame('socket-1');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Need at least 2 players');
+    });
+
+    it('creates a fresh engine with dealt hands', () => {
+      startAndFinishGame(rm);
+      const result = rm.restartGame('socket-1');
+      expect(result.success).toBe(true);
+      // Engine's players should have fresh hands dealt
+      for (const p of result.engine!.getState().players) {
+        expect(p.hand).toHaveLength(4);
+        expect(p.cardCount).toBe(4);
+      }
+    });
+  });
+
+  describe('returnToLobby', () => {
+    it('resets game state to null', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+      expect(room.gameState).not.toBeNull();
+
+      const result = rm.returnToLobby(room.id);
+      expect(result).not.toBeNull();
+      expect(result?.gameState).toBeNull();
+    });
+
+    it('deletes the engine', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+      expect(rm.getEngine(room.id)).toBeDefined();
+
+      rm.returnToLobby(room.id);
+      expect(rm.getEngine(room.id)).toBeUndefined();
+    });
+
+    it('resets player state (hand, cardCount, isReady)', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      const result = rm.returnToLobby(room.id);
+      for (const p of result?.players ?? []) {
+        expect(p.hand).toHaveLength(0);
+        expect(p.cardCount).toBe(0);
+        expect(p.isReady).toBe(false);
+      }
+    });
+
+    it('returns null for nonexistent room', () => {
+      expect(rm.returnToLobby('FAKE')).toBeNull();
+    });
+  });
+
+  describe('demotePlayerToSpectator', () => {
+    it('moves player to spectators', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+
+      const result = rm.demotePlayerToSpectator('socket-2');
+      expect(result.success).toBe(true);
+      expect(result.room?.players).toHaveLength(1);
+      expect(result.room?.spectators.some(s => s.name === 'Bob')).toBe(true);
+    });
+
+    it('reassigns host if demoted player was host', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+
+      const result = rm.demotePlayerToSpectator('socket-1');
+      expect(result.success).toBe(true);
+      // Bob should be new host
+      expect(result.room?.hostId).not.toBe(result.spectatorId);
+    });
+
+    it('rejects during active game', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      const result = rm.demotePlayerToSpectator('socket-2');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Cannot spectate during active game');
+    });
+
+    it('returns error for unknown socket', () => {
+      const result = rm.demotePlayerToSpectator('nonexistent');
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('setMapping / setSpectatorMapping', () => {
+    it('re-maps socket to existing player', () => {
+      const { room, playerId } = createRoom(rm, 'socket-1', 'Alice');
+      rm.setMapping('socket-new', room.id, playerId);
+      expect(rm.getMapping('socket-new')).toEqual({ roomId: room.id, playerId });
+      // Old mapping should be cleaned up
+      expect(rm.getMapping('socket-1')).toBeUndefined();
+    });
+
+    it('re-maps socket to existing spectator', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      for (let i = 2; i <= 6; i++) {
+        rm.joinRoom(`socket-${i}`, room.id, `P${i}`);
+      }
+      const spec = rm.joinRoom('socket-7', room.id, 'Spec');
+      expect(spec.asSpectator).toBe(true);
+
+      rm.setSpectatorMapping('socket-new', room.id, spec.playerId!);
+      expect(rm.getSpectatorMapping('socket-new')).toEqual({ roomId: room.id, spectatorId: spec.playerId });
+    });
+  });
+
+  describe('leaveRoom — during active game', () => {
+    it('marks player as disconnected instead of removing', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      const result = rm.leaveRoom('socket-2');
+      expect(result).not.toBeNull();
+      // Player should still be in the list but disconnected
+      const bob = result?.room?.players.find(p => p.name === 'Bob');
+      expect(bob).toBeDefined();
+      expect(bob?.isConnected).toBe(false);
+    });
+  });
+
+  describe('leaveRoom — spectator', () => {
+    it('removes spectator from room', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      for (let i = 2; i <= 6; i++) {
+        rm.joinRoom(`socket-${i}`, room.id, `P${i}`);
+      }
+      rm.joinRoom('socket-7', room.id, 'Spec');
+
+      const result = rm.leaveRoom('socket-7');
+      expect(result).not.toBeNull();
+      expect(result?.wasSpectator).toBe(true);
+      expect(result?.room?.spectators.some(s => s.name === 'Spec')).toBe(false);
+    });
+  });
+
+  describe('joinRoom — reconnection during active game', () => {
+    it('reconnects a disconnected player by name', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      // Disconnect Bob
+      rm.leaveRoom('socket-2');
+      const bob = room.players.find(p => p.name === 'Bob');
+      expect(bob?.isConnected).toBe(false);
+
+      // Reconnect with new socket
+      const result = rm.joinRoom('socket-3', room.id, 'Bob');
+      expect(result.success).toBe(true);
+      expect(result.asSpectator).toBeUndefined();
+      expect(bob?.isConnected).toBe(true);
+    });
+
+    it('joins as spectator if name does not match disconnected player', () => {
+      const { room } = createRoom(rm, 'socket-1', 'Alice');
+      rm.joinRoom('socket-2', room.id, 'Bob');
+      rm.toggleReady('socket-2');
+      rm.startGame('socket-1');
+
+      // New player during active game
+      const result = rm.joinRoom('socket-3', room.id, 'Charlie');
+      expect(result.success).toBe(true);
+      expect(result.asSpectator).toBe(true);
     });
   });
 });

@@ -241,7 +241,7 @@ export default function HomeScreen() {
             <img src="/favicon.svg" alt="" className="w-14 h-14" />{' '}
             Carta
           </h1>
-          <p className="text-white/60 text-sm">Moroccan Card Games • UNO-Style</p>
+          <p className="text-white/60 text-sm">Moroccan Card Games</p> {/*  • UNO-Style */}
           <p className="text-white/40 text-xs mt-1" dir="rtl">طبق زروط</p>
         </div>
 
