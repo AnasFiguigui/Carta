@@ -100,7 +100,7 @@ export default function DarkVeil({
     if (!parent) return;
 
     const renderer = new Renderer({
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: 1,
       canvas
     });
 
@@ -123,11 +123,17 @@ export default function DarkVeil({
 
     const mesh = new Mesh(gl, { geometry, program });
 
+    const isMobile = parent.clientWidth < 768;
+    const scale = resolutionScale * (isMobile ? 0.5 : 0.75);
+
     const resize = () => {
       const w = parent.clientWidth,
         h = parent.clientHeight;
-      renderer.setSize(w * resolutionScale, h * resolutionScale);
-      program.uniforms.uResolution.value.set(w, h);
+      renderer.setSize(w * scale, h * scale);
+      // Override CSS size so canvas fills parent (render at lower res for perf)
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      program.uniforms.uResolution.value.set(w * scale, h * scale);
     };
 
     window.addEventListener('resize', resize);
@@ -135,8 +141,13 @@ export default function DarkVeil({
 
     const start = performance.now();
     let frame = 0;
+    let lastRender = 0;
+    const interval = 1000 / 30; // cap at 30fps
 
-    const loop = () => {
+    const loop = (now: number) => {
+      frame = requestAnimationFrame(loop);
+      if (now - lastRender < interval) return;
+      lastRender = now;
       program.uniforms.uTime.value = ((performance.now() - start) / 1000) * speed;
       program.uniforms.uHueShift.value = hueShift;
       program.uniforms.uNoise.value = noiseIntensity;
@@ -144,10 +155,9 @@ export default function DarkVeil({
       program.uniforms.uScanFreq.value = scanlineFrequency;
       program.uniforms.uWarp.value = warpAmount;
       renderer.render({ scene: mesh });
-      frame = requestAnimationFrame(loop);
     };
 
-    loop();
+    frame = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(frame);
