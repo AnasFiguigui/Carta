@@ -11,7 +11,10 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
   const [avatarId, setAvatarId] = useState<AvatarId>('default');
-  const [avatarColor, setAvatarColor] = useState('#3498db');
+  const [avatarColor, setAvatarColor] = useState(() => {
+    const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#14B8A6', '#6366F1', '#D946EF'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  });
   const isMenuMode = mode === 'menu';
   const isJoinMode = mode === 'join';
 

@@ -7,6 +7,13 @@ export const SUIT_SYMBOLS: Record<Suit, string> = {
   [Suit.Coins]: '🪙',
 };
 
+export const SUIT_ICONS: Record<Suit, string> = {
+  [Suit.Cups]: '/symbols/cups.webp',
+  [Suit.Swords]: '/symbols/swords.webp',
+  [Suit.Clubs]: '/symbols/clubs.webp',
+  [Suit.Coins]: '/symbols/coins.webp',
+};
+
 export const SUIT_COLORS: Record<Suit, string> = {
   [Suit.Cups]: '#e74c3c',
   [Suit.Swords]: '#3498db',

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Suit } from 'shared';
-import { SUIT_SYMBOLS, SUIT_COLORS, SUIT_LABELS } from '../lib/cardUtils';
+import { SUIT_ICONS, SUIT_COLORS, SUIT_LABELS } from '../lib/cardUtils';
 import { getSocket } from '../lib/socket';
 
 interface SuitSelectorProps {
@@ -33,7 +33,7 @@ export default function SuitSelector({ onClose }: SuitSelectorProps) {
               }}
               onClick={() => handleSelect(suit)}
             >
-              <span className="text-4xl">{SUIT_SYMBOLS[suit]}</span>
+              <img src={SUIT_ICONS[suit]} alt={SUIT_LABELS[suit].en} className="w-10 h-10 object-contain" />
               <span className="text-sm font-bold">{SUIT_LABELS[suit].en}</span>
               <span className="text-xs opacity-70" dir="rtl">{SUIT_LABELS[suit].ar}</span>
             </button>

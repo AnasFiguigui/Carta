@@ -1,8 +1,10 @@
 import React from 'react';
+import { Suit } from 'shared';
 import type { Card as CardType } from 'shared';
 import Card from './Card';
 import { useGameStore } from '../lib/store';
 import { getSocket } from '../lib/socket';
+import { SUIT_ICONS, SUIT_COLORS } from '../lib/cardUtils';
 
 interface CenterAreaProps {
   topCard: CardType | null;
@@ -127,10 +129,11 @@ export default function CenterArea({
         {gameState?.forcedSuit && (
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 animate-bounce-in">
             <div
-              className="px-3 py-1 rounded-full text-white text-sm font-bold shadow-lg"
-              style={{ background: 'rgba(155, 89, 182, 0.9)' }}
+              className="px-3 py-1 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1 whitespace-nowrap"
+              style={{ background: SUIT_COLORS[gameState.forcedSuit as Suit] + 'dd' }}
             >
-              Suit: {gameState.forcedSuit}
+              <img src={SUIT_ICONS[gameState.forcedSuit as Suit]} alt="" className="w-4 h-4 object-contain shrink-0" />
+              {gameState.forcedSuit}
             </div>
           </div>
         )}
