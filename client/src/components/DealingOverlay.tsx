@@ -58,6 +58,7 @@ export default function DealingOverlay({ players, onComplete, cardsPerPlayer = 4
       {/* Flying cards */}
       {dealtCards.map(({ id, playerIdx }) => {
         const target = players[playerIdx];
+        if (!target) return null;
         return (
           <div
             key={id}

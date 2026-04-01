@@ -17,15 +17,36 @@ export function useSocketEvents() {
 
     socket.on('connect', () => {
       getState().setConnected(true);
-      // Re-request state on reconnect
-      if (getState().roomId) {
-        socket.emit('request-state');
+      // On reconnect, try to rejoin with stored credentials so the new socket gets mapped
+      const { roomId, playerId } = getState();
+      if (roomId && playerId) {
+        socket.emit('rejoin', { roomId, playerId }, (res) => {
+          if (!res.success) {
+            // Fallback: request-state might work if mapping still exists
+            socket.emit('request-state');
+          }
+        });
       }
     });
 
     socket.on('disconnect', () => {
       getState().setConnected(false);
     });
+
+    // When user returns to the tab, re-request state in case we missed updates
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && socket.connected) {
+        const { roomId, playerId } = getState();
+        if (roomId && playerId) {
+          socket.emit('rejoin', { roomId, playerId }, (res) => {
+            if (!res.success) {
+              socket.emit('request-state');
+            }
+          });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     socket.on('room-updated', (data) => {
       getState().setRoomData(data.id, data.hostId, data.players, data.maxPlayers, (data as any).spectators);

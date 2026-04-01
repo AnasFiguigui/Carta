@@ -392,6 +392,9 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
         }
       }
 
+      // Notify all clients of phase change (lobby → playing)
+      io.to(result.room.id).emit('room-updated', roomManager.getRoomInfo(result.room));
+
       emitSound(result.room.id, 'turn-start');
       startTurnTimer(result.room.id);
     });
@@ -633,6 +636,54 @@ export function setupSocketHandlers(io: TypedServer, roomManager: RoomManager): 
           socket.emit('game-state', engine.getClientState('__spectator__', room.spectators));
         }
       }
+    });
+
+    // ===== REJOIN (reconnect with stored playerId) =====
+    socket.on('rejoin', (data, cb) => {
+      if (!data || typeof data.roomId !== 'string' || typeof data.playerId !== 'string' || typeof cb !== 'function') return;
+
+      const roomCode = sanitizeRoomCode(data.roomId);
+      const room = roomManager.getRoom(roomCode);
+      if (!room) { cb({ success: false }); return; }
+
+      // Try to find as player
+      const player = room.players.find(p => p.id === data.playerId);
+      if (player) {
+        player.isConnected = true;
+        roomManager.setMapping(socket.id, roomCode, player.id);
+        socket.join(roomCode);
+
+        const engine = roomManager.getEngine(roomCode);
+        if (engine) {
+          engine.reconnectPlayer(player.id);
+          clearDisconnectKickTimer(player.id);
+          socket.emit('game-state', engine.getClientState(player.id, room.spectators));
+          cb({ success: true, view: 'game' });
+        } else {
+          cb({ success: true, view: 'lobby' });
+        }
+        io.to(roomCode).emit('room-updated', roomManager.getRoomInfo(room));
+        return;
+      }
+
+      // Try as spectator
+      const spectator = room.spectators.find(s => s.id === data.playerId);
+      if (spectator) {
+        roomManager.setSpectatorMapping(socket.id, roomCode, spectator.id);
+        socket.join(roomCode);
+
+        const engine = roomManager.getEngine(roomCode);
+        if (engine) {
+          socket.emit('game-state', engine.getClientState('__spectator__', room.spectators));
+          cb({ success: true, view: 'game' });
+        } else {
+          cb({ success: true, view: 'lobby' });
+        }
+        socket.emit('room-updated', roomManager.getRoomInfo(room));
+        return;
+      }
+
+      cb({ success: false });
     });
 
     // ===== JOIN AS PLAYER (spectator → player) =====

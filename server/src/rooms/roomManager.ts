@@ -462,6 +462,27 @@ export class RoomManager {
     return this.socketMap.get(socketId);
   }
 
+  /** Re-map a new socket ID to an existing player */
+  setMapping(socketId: string, roomId: string, playerId: string): void {
+    // Remove any old mapping for this player
+    for (const [sid, m] of this.socketMap.entries()) {
+      if (m.roomId === roomId && m.playerId === playerId) {
+        this.socketMap.delete(sid);
+      }
+    }
+    this.socketMap.set(socketId, { roomId, playerId });
+  }
+
+  /** Re-map a new socket ID to an existing spectator */
+  setSpectatorMapping(socketId: string, roomId: string, spectatorId: string): void {
+    for (const [sid, m] of this.spectatorSocketMap.entries()) {
+      if (m.roomId === roomId && m.spectatorId === spectatorId) {
+        this.spectatorSocketMap.delete(sid);
+      }
+    }
+    this.spectatorSocketMap.set(socketId, { roomId, spectatorId });
+  }
+
   /** Find socket ID for a player in a room */
   getSocketIdForPlayer(roomId: string, playerId: string): string | undefined {
     for (const [sid, mapping] of this.socketMap.entries()) {
