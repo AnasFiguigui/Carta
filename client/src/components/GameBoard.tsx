@@ -135,13 +135,12 @@ export default function GameBoard() {
   const isSpectator = myPlayerIndex === -1;
 
   // Detect game start (phase transitions to 'playing') and trigger dealing animation.
-  // Only trigger when the previous phase was a known non-playing phase (not null),
-  // so that reconnecting/recovering into an in-progress game skips the animation.
+  // Only trigger when coming from 'lobby' or 'round_end' (new deal), NOT from
+  // 'choosing_wild_suit' which also transitions back to 'playing'.
   useEffect(() => {
     const currentPhase = gameState?.phase ?? null;
     if (
-      prevPhaseRef.current !== null &&
-      prevPhaseRef.current !== 'playing' &&
+      (prevPhaseRef.current === 'lobby' || prevPhaseRef.current === 'round_end') &&
       currentPhase === 'playing'
     ) {
       setIsDealing(true);
